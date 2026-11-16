@@ -42,6 +42,8 @@ final class Match {
     @Relationship(deleteRule: .cascade, inverse: \FightDetail.match)
     var fight: FightDetail?
 
+    /// Only for `.penalties`: regular shots per side (3, 5 or 10).
+    var penaltyShotsPerSide: Int?
     /// Only for `.time` (Running).
     var distanceMeters: Int?
     /// Side that gave up (`"Match not finished"`), counts as a win for the other side.

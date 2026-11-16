@@ -35,7 +35,11 @@ extension Match {
             return try? ResultRules.validatePoints(scoreA: score.scoreA, scoreB: score.scoreB,
                                                    sport: sportType).get()
         case .penalties:
-            // Shots were validated when saving, so the goal count decides.
+            if let shotsPerSide = penaltyShotsPerSide {
+                let shots = orderedPenalties.map { PenaltyEntry(side: $0.side, scored: $0.scored) }
+                return try? ResultRules.validatePenalties(shots, shotsPerSide: shotsPerSide).get()
+            }
+            // Without a shot count the goal count decides.
             let goalsA = penalties.filter { $0.side == .a && $0.scored }.count
             let goalsB = penalties.filter { $0.side == .b && $0.scored }.count
             guard goalsA != goalsB else { return nil }
@@ -54,19 +58,12 @@ extension Match {
         }
     }
 
-    /// Running 1v1: faster time wins, exactly the same time is a draw, DNF loses (plan.md §2.2).
+    /// Running 1v1 (plan.md §2.2).
     private var timeResult: MatchResult? {
         guard mode == .oneVsOne,
               let a = participants(on: .a).first,
               let b = participants(on: .b).first else { return nil }
-        switch (a.dnf, b.dnf) {
-        case (true, true): return MatchResult(outcome: .draw)
-        case (true, false): return MatchResult(outcome: .win(.b))
-        case (false, true): return MatchResult(outcome: .win(.a))
-        case (false, false):
-            guard let timeA = a.timeMs, let timeB = b.timeMs, timeA >= 0, timeB >= 0 else { return nil }
-            if timeA == timeB { return MatchResult(outcome: .draw) }
-            return MatchResult(outcome: .win(timeA < timeB ? .a : .b))
-        }
+        return try? ResultRules.validateTime(timeA: a.timeMs, dnfA: a.dnf, timeB: b.timeMs, dnfB: b.dnf,
+                                             distanceMeters: distanceMeters).get()
     }
 }

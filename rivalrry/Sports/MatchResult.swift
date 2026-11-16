@@ -50,6 +50,9 @@ enum ResultIssue: Error, Equatable {
     case endRoundRequired
     case invalidEndRound
     case invalidRoundScore(round: Int)
+    // time
+    case invalidDistance
+    case missingTime
 
     var message: String {
         switch self {
@@ -93,6 +96,10 @@ enum ResultIssue: Error, Equatable {
             "The fight can't end after the last round."
         case .invalidRoundScore(let round):
             "Round \(round): use the 10-point system, e.g. 10–9."
+        case .invalidDistance:
+            "Enter a distance."
+        case .missingTime:
+            "Enter a time or DNF for both players."
         }
     }
 

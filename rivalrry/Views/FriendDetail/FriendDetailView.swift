@@ -15,6 +15,8 @@ struct FriendDetailView: View {
     @State private var isEditingFriend = false
     @State private var isConfirmingDelete = false
     @State private var deleteOnDisappear = false
+    @State private var savedCount = 0
+    @State private var showsSavedMessage = false
 
     enum DetailTab: String, CaseIterable {
         case overview = "Overview"
@@ -76,8 +78,30 @@ struct FriendDetailView: View {
                 .navigationBarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $isAddingMatch) {
-            // Placeholder until S2b Add Match (Step 6).
-            placeholderSheet(title: "Add Match") { isAddingMatch = false }
+            AddMatchView(me: me, friend: friend) {
+                tab = .overview
+                savedCount += 1
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showsSavedMessage {
+                Text("Match saved")
+                    .font(.headline)
+                    .foregroundStyle(Color.rvTextPrimary)
+                    .padding(.horizontal, Spacing.l)
+                    .padding(.vertical, Spacing.s + Spacing.xs)
+                    .background(Color.rvSurface, in: Capsule())
+                    .padding(.bottom, 88)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .sensoryFeedback(.success, trigger: savedCount)
+        .task(id: savedCount) {
+            // Short confirmation after saving (plan.md §4 S2b).
+            guard savedCount > 0 else { return }
+            withAnimation(.spring(duration: 0.3)) { showsSavedMessage = true }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.spring(duration: 0.3)) { showsSavedMessage = false }
         }
         .sheet(isPresented: $isEditingFriend) {
             // Placeholder until S4 Add Friend / Edit Friend (Step 8).
