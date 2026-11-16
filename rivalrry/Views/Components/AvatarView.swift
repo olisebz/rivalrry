@@ -3,18 +3,31 @@ import UIKit
 
 /// Round avatar: photo, or initials in the player's color on a muted background (design.md §2.4, §2.5).
 struct AvatarView: View {
-    let player: Player
+    let name: String
+    let colorHex: String
+    var photo: Data? = nil
     var size: CGFloat = 40
 
+    init(player: Player, size: CGFloat = 40) {
+        self.init(name: player.name, colorHex: player.colorHex, photo: player.photo, size: size)
+    }
+
+    init(name: String, colorHex: String, photo: Data? = nil, size: CGFloat = 40) {
+        self.name = name
+        self.colorHex = colorHex
+        self.photo = photo
+        self.size = size
+    }
+
     var body: some View {
-        let color = Color(hex: player.colorHex)
+        let color = Color(hex: colorHex)
         Group {
-            if let photo = player.photo, let image = UIImage(data: photo) {
+            if let photo, let image = UIImage(data: photo) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
             } else {
-                Text(player.initials)
+                Text(Player.initials(for: name))
                     .font(size >= 64 ? .system(size: 22, weight: .semibold) : .headline)
                     .foregroundStyle(color)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

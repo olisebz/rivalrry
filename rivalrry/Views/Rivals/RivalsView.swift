@@ -28,10 +28,7 @@ struct RivalsView: View {
             .navigationTitle("Rivals")
             .toolbar { toolbar }
             .navigationDestination(for: Player.self) { friend in
-                // Placeholder until S2 Friend Detail (Step 5).
-                Text(friend.name)
-                    .navigationTitle(friend.shortName)
-                    .navigationBarTitleDisplayMode(.inline)
+                FriendDetailView(friend: friend)
             }
             .sheet(isPresented: $isAddingFriend) {
                 // Placeholder until S4 Add Friend (Step 8).

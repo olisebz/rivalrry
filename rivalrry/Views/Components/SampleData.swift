@@ -14,6 +14,12 @@ enum SampleData {
         return container
     }
 
+    /// A sample player by full name, e.g. "Max Keller".
+    static func player(_ name: String, in container: ModelContainer) -> Player {
+        let players = (try? container.mainContext.fetch(FetchDescriptor<Player>())) ?? []
+        return players.first { $0.name == name } ?? Player(name: name)
+    }
+
     static func insert(into context: ModelContext) {
         let me = Player(name: "Alex Morgan", colorHex: "6E6E73", isMe: true)
         let max = Player(name: "Max Keller", colorHex: "4F6BED")
@@ -34,11 +40,18 @@ enum SampleData {
 
     private static func addSeries(in context: ModelContext, me: Player, friend: Player, startingDaysAgo: Int,
                                   _ series: [(sport: SportType, wins: Int, losses: Int)]) {
+        // Per sport, alternate wins and losses; across sports, take turns. The first sport is the newest.
+        var queues = series.map { entry in
+            let pairs = min(entry.wins, entry.losses)
+            let mixed = (0..<pairs).flatMap { _ in [true, false] }
+                + Array(repeating: entry.wins > entry.losses, count: abs(entry.wins - entry.losses))
+            return (sport: entry.sport, outcomes: mixed)
+        }
         var daysAgo = startingDaysAgo
-        for (sport, wins, losses) in series {
-            let outcomes = Array(repeating: true, count: wins) + Array(repeating: false, count: losses)
-            for won in outcomes {
-                addMatch(in: context, sport: sport, iWin: won, me: me, friend: friend,
+        while queues.contains(where: { !$0.outcomes.isEmpty }) {
+            for index in queues.indices where !queues[index].outcomes.isEmpty {
+                let won = queues[index].outcomes.removeFirst()
+                addMatch(in: context, sport: queues[index].sport, iWin: won, me: me, friend: friend,
                          date: Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date())!)
                 daysAgo += 2
             }
