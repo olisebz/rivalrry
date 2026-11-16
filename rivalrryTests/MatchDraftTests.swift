@@ -61,6 +61,19 @@ struct MatchDraftTests {
         #expect(!MatchDraft(sport: .badminton).needsTiebreakField(SetEntry(scoreA: 22, scoreB: 21)))
     }
 
+    @Test func hiddenTiebreakDoesNotBlockSaving() throws {
+        // 7:6 with a tiebreak, then the set is changed to 7:5: the field disappears, its value must not count.
+        var draft = MatchDraft(sport: .tennis)
+        draft.sets = [SetEntry(scoreA: 6, scoreB: 4), SetEntry(scoreA: 7, scoreB: 5, tiebreakA: 7, tiebreakB: 3)]
+        #expect(draft.previewText(friendName: "Max") == "You win 2–0")
+        #expect(draft.effectiveSets.last?.tiebreakA == nil)
+
+        let f = try Fixture()
+        let match = draft.insertMatch(me: f.me, friend: f.max, into: f.context)
+        #expect(match.orderedSets.last?.tiebreakA == nil)
+        #expect(match.result == MatchResult(outcome: .win(.a), scoreA: 2, scoreB: 0))
+    }
+
     @Test func penaltyTapping() {
         var draft = MatchDraft(sport: .penaltyShootout)
         #expect(draft.shotState(round: 0, side: .a) == .next)

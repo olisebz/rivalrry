@@ -33,6 +33,12 @@ struct TimeEntryView: View {
             runner("You", time: $draft.timeTextA, dnf: $draft.dnfA)
             runner(friendName, time: $draft.timeTextB, dnf: $draft.dnfB)
         }
+        .onAppear {
+            // Editing a run with e.g. 1500 m: show it as "Custom", not as an empty menu.
+            if let distance = draft.distanceMeters, !ResultRules.runningDistances.contains(distance) {
+                isCustomDistance = true
+            }
+        }
     }
 
     /// `nil` selects "Custom".

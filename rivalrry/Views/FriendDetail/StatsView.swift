@@ -34,6 +34,8 @@ struct StatsView: View {
 
     var body: some View {
         let sports = Rivalry.sportsPlayed(of: me, with: friend, in: allMatches)
+        // A saved sport filter for a sport that's no longer played falls back to "All".
+        let sport = self.sport.flatMap { sports.contains($0) ? $0 : nil }
         let filter = DuelFilter(sport: sport, mode: mode, since: period.since())
         let duels = Rivalry.duels(of: me, against: friend, in: allMatches, filter: filter)
         let record = Rivalry.record(of: me, against: friend, in: allMatches, filter: filter)
@@ -82,7 +84,8 @@ struct StatsView: View {
 
     private func filters(sports: [SportType]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            if sports.count > 1 {
+            // Also keep the chips while a sport is selected, so "All" is always reachable.
+            if sports.count > 1 || sport != nil {
                 FilterChips(options: [(value: "", title: "All")] + sports.map { (value: $0.rawValue, title: $0.displayName) },
                             selection: $sportRaw)
             }

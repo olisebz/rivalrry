@@ -51,7 +51,7 @@ struct MatchDraft: Equatable {
     func validate() -> Result<MatchResult, ResultIssue> {
         switch sport.scoringType {
         case .sets:
-            return ResultRules.validateSets(sets, bestOf: bestOf, sport: sport,
+            return ResultRules.validateSets(effectiveSets, bestOf: bestOf, sport: sport,
                                             retiredSide: isRetired ? retiredSide : nil)
         case .points:
             return ResultRules.validatePoints(scoreA: scoreA, scoreB: scoreB, sport: sport)
@@ -92,7 +92,7 @@ struct MatchDraft: Equatable {
         guard sets.count < bestOf, !isRetired, let rules = sport.setRules else { return false }
         let needed = bestOf / 2 + 1
         var wonA = 0, wonB = 0
-        for set in sets {
+        for set in effectiveSets {
             switch ResultRules.check(set, rules: rules) {
             case .won(.a): wonA += 1
             case .won(.b): wonB += 1
@@ -100,6 +100,12 @@ struct MatchDraft: Equatable {
             }
         }
         return wonA < needed && wonB < needed
+    }
+
+    /// The sets as they count: a tiebreak only stays on a 7:6 set. If the score was changed
+    /// after entering a tiebreak, the hidden tiebreak value must not block saving.
+    var effectiveSets: [SetEntry] {
+        sets.map { needsTiebreakField($0) ? $0 : SetEntry(scoreA: $0.scoreA, scoreB: $0.scoreB) }
     }
 
     /// A tiebreak field is shown for a 7:6 set in Tennis/Padel.

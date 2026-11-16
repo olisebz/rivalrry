@@ -60,9 +60,10 @@ struct MatchDetailView: View {
         }
     }
 
-    /// Phase 1 can only edit 1v1 matches of the Phase 1 sports.
+    /// Phase 1 can only edit 1v1 matches of the Phase 1 sports, with both players still there.
     private var canEdit: Bool {
         match.mode == .oneVsOne && SportType.phase1Sports.contains(match.sportType)
+            && sideA?.player != nil && sideB?.player != nil
     }
 
     // MARK: - Heading
@@ -281,7 +282,7 @@ struct MatchDetailView: View {
 
     @ViewBuilder
     private var editSheet: some View {
-        if let friend = sideB?.player ?? sideA?.player {
+        if let friend = sideB?.player {
             NavigationStack {
                 MatchEntryView(sport: match.sportType, me: me, friend: friend, isEdited: $isEdited,
                                initialDraft: MatchDraft(match: match),
