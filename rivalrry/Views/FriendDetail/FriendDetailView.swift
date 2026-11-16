@@ -51,8 +51,11 @@ struct FriendDetailView: View {
                         }
                     }
                 case .stats:
-                    // Placeholder until S2c Stats (Step 7).
-                    Color.clear.frame(height: 1)
+                    if let me {
+                        StatsView(me: me, friend: friend, allMatches: allMatches)
+                    } else {
+                        EmptyStateView(symbol: "chart.xyaxis.line", message: "Play a few matches to see stats.")
+                    }
                 }
             }
             .padding(.bottom, Spacing.l)
@@ -180,3 +183,28 @@ struct FriendDetailView: View {
     }
     .modelContainer(container)
 }
+
+#Preview("Max – Stats") {
+    let container = SampleData.container()
+    return NavigationStack {
+        StatsPreviewHost(friend: SampleData.player("Max Keller", in: container),
+                         me: SampleData.player("Alex Morgan", in: container))
+    }
+    .modelContainer(container)
+}
+
+#if DEBUG
+/// Shows only the Stats tab in a preview.
+private struct StatsPreviewHost: View {
+    let friend: Player
+    let me: Player
+    @Query private var matches: [Match]
+
+    var body: some View {
+        ScrollView {
+            StatsView(me: me, friend: friend, allMatches: matches)
+        }
+        .background(Color.rvBackground)
+    }
+}
+#endif

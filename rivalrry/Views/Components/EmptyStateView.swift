@@ -4,8 +4,8 @@ import SwiftUI
 struct EmptyStateView: View {
     let symbol: String
     let message: String
-    let buttonTitle: String
-    let action: () -> Void
+    var buttonTitle: String? = nil
+    var action: () -> Void = {}
 
     var body: some View {
         VStack(spacing: Spacing.l) {
@@ -17,8 +17,10 @@ struct EmptyStateView: View {
                 .foregroundStyle(Color.rvTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
-            Button(buttonTitle, action: action)
-                .buttonStyle(PrimaryButtonStyle())
+            if let buttonTitle {
+                Button(buttonTitle, action: action)
+                    .buttonStyle(PrimaryButtonStyle())
+            }
         }
         .padding(.horizontal, Spacing.m)
         .padding(.vertical, Spacing.xl)
