@@ -1,0 +1,131 @@
+import SwiftUI
+import SwiftData
+
+/// S1 – Rivals: where you stand against whom (plan.md §4 S1).
+struct RivalsView: View {
+    @Query(sort: \Player.createdAt) private var players: [Player]
+    @Query private var matches: [Match]
+    @AppStorage("rivalsSort") private var sort: RivalsSort = .recentlyPlayed
+    @State private var isAddingFriend = false
+
+    private var me: Player? { players.first(where: \.isMe) }
+    private var friends: [Player] { players.filter { !$0.isMe } }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if friends.isEmpty {
+                    EmptyStateView(symbol: "person.2",
+                                   message: "No rivals yet. Add a friend to start keeping score.",
+                                   buttonTitle: "Add Friend") {
+                        isAddingFriend = true
+                    }
+                } else {
+                    friendList
+                }
+            }
+            .background(Color.rvBackground)
+            .navigationTitle("Rivals")
+            .toolbar { toolbar }
+            .navigationDestination(for: Player.self) { friend in
+                // Placeholder until S2 Friend Detail (Step 5).
+                Text(friend.name)
+                    .navigationTitle(friend.shortName)
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .sheet(isPresented: $isAddingFriend) {
+                // Placeholder until S4 Add Friend (Step 8).
+                NavigationStack {
+                    Color.rvBackground
+                        .navigationTitle("Add Friend")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Cancel") { isAddingFriend = false }
+                            }
+                        }
+                }
+            }
+        }
+    }
+
+    private var friendList: some View {
+        let active = Rivalry.summaries(of: me, friends: friends.filter { !$0.isArchived },
+                                       matches: matches, sortedBy: sort)
+        let archived = Rivalry.summaries(of: me, friends: friends.filter(\.isArchived),
+                                         matches: matches, sortedBy: sort)
+        return List {
+            Section {
+                ForEach(active) { summary in
+                    row(summary, swipeTitle: "Archive", setArchived: true)
+                }
+            }
+            if !archived.isEmpty {
+                Section {
+                    ForEach(archived) { summary in
+                        row(summary, swipeTitle: "Restore", setArchived: false)
+                    }
+                } header: {
+                    Text("Archived")
+                        .font(.headline)
+                        .foregroundStyle(Color.rvTextSecondary)
+                        .textCase(nil)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .listRowSpacing(Spacing.s)
+    }
+
+    private func row(_ summary: FriendSummary, swipeTitle: String, setArchived: Bool) -> some View {
+        FriendCard(summary: summary)
+            // Invisible link hides the list's chevron: the whole card is tappable (design.md §6.2).
+            .background(NavigationLink(value: summary.friend) { EmptyView() }.opacity(0))
+            .listRowInsets(EdgeInsets(top: 0, leading: Spacing.m, bottom: 0, trailing: Spacing.m))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .swipeActions(edge: .trailing) {
+                Button(swipeTitle) {
+                    withAnimation(.spring(duration: 0.3)) { summary.friend.isArchived = setArchived }
+                }
+                .tint(Color.rvTextSecondary)
+            }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            if !friends.isEmpty {
+                Menu {
+                    Picker("Sort", selection: $sort) {
+                        ForEach(RivalsSort.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .foregroundStyle(Color.rvTextPrimary)
+                }
+                .accessibilityLabel("Sort")
+            }
+            Button {
+                isAddingFriend = true
+            } label: {
+                Image(systemName: "person.badge.plus")
+                    .foregroundStyle(Color.rvTextPrimary)
+            }
+            .accessibilityLabel("Add Friend")
+        }
+    }
+}
+
+#Preview("4 friends") {
+    RivalsView()
+        .modelContainer(SampleData.container())
+}
+
+#Preview("Empty") {
+    RivalsView()
+        .modelContainer(SampleData.container(filled: false))
+}

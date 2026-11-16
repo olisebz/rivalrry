@@ -5,12 +5,7 @@ import SwiftData
 struct RivalrryApp: App {
     var body: some Scene {
         WindowGroup {
-            // Placeholder until the tab navigation (Step 4).
-            Text("RIVALRRY")
-                .font(.largeTitle.bold())
-                .foregroundStyle(Color.rvTextPrimary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.rvBackground)
+            RootView()
         }
         .modelContainer(for: AppSchema.models)
     }

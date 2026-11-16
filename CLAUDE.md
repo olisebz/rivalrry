@@ -28,4 +28,4 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
 - All texts in the app in English and exactly as in plan.md.
 - If something is unclear or you want to deviate from the plan: ask first.
 - Sample data for previews: design.md §9.4 (Max, Tom, Lukas, Jonas).
-- Tests run via the `rivalrryTests` scheme (the app must be built first; see `ENABLE_DEBUG_DYLIB = NO`).
+- Tests run in the `rivalrry` scheme (the test target depends on the app in `project.xcproj`).
