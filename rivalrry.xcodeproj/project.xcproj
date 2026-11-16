@@ -13,6 +13,7 @@
   "files": [
     { "kind": "folder", "path": "rivalrry", "target-membership": [ "rivalrry" ] },
     { "kind": "folder", "path": "rivalrryTests", "target-membership": [ "rivalrryTests" ] },
+    { "path": "rivalrry-logo.icon", "target-membership": [ "rivalrry/resources" ] },
     {
       "kind": "group",
       "name": "Products",
@@ -34,6 +35,7 @@
         "resources",
       ],
       "build-settings": {
+        "ASSETCATALOG_COMPILER_APPICON_NAME": "rivalrry-logo",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
         "ENABLE_APP_SANDBOX": "YES",
