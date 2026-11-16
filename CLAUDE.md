@@ -18,13 +18,15 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   5. Red only for deleting. Friend leads = normal text color, tie = grey.
   6. Phase 1 has only 2 tabs: "Rivals" and "Profile".
   7. Formats per sport exactly as in plan.md 2.2 (Badminton only Best of 1/3, Ping Pong default Best of 5).
+  8. Stats has a "Head to Head" card per sport (plan.md S2c, design.md §6.12): who won more, sets/points/goals
+     combined and sport-specific comparisons. This is Phase 1, pulled forward from the Phase 2 sport tiles.
 
 ## Way of working
 - ONLY Phase 1, in small steps. After each step: build the project, run the tests,
   summarize briefly, then STOP and wait for an OK.
 - Steps: 1 project/tokens/model · 2 result rules + validation (sets, points, penalties, fight) + tests ·
   3 record/duel logic + tests · 4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match (sheet) ·
-  7 S2c Stats · 8 S3 Match Detail, S4 Add Friend · 9 S0 Onboarding, S9 Profile
+  7 S2c Stats · 8 S3 Match Detail, S4 Add Friend · 9 S0 Onboarding, S9 Profile · 10 Head to Head per sport
 - All texts in the app in English and exactly as in plan.md.
 - If something is unclear or you want to deviate from the plan: ask first.
 - Sample data for previews: design.md §9.4 (Max, Tom, Lukas, Jonas).

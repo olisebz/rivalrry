@@ -251,6 +251,20 @@ Always use **"continuous"** corners (`RoundedRectangle(cornerRadius: 16, style: 
 ### 6.11 Live Preview While Logging (S2b)
 - Above the button: `"You win 2–1"` in `headline`, `accent` if you win; otherwise `textPrimary`.
 
+### 6.12 Head to Head (S2c, one sport selected)
+```
+┌──────────────────────────────────────────┐
+│ You           HEAD TO HEAD           Max │  ← headline / caption caps, textSecondary
+│                  5 – 3                   │  ← scoreLarge, record colors (§2.3)
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │  ← win share bar (§6.3)
+│ 11            Sets won                 8 │
+│ 372          Points won              381 │  ← label subheadline, textSecondary
+└──────────────────────────────────────────┘
+```
+- Box `surface`, radius 16, padding 16; rows separated by `separator` lines.
+- Values `body`, monospaced digits. The better value is bold: `accent` if it's yours, `textPrimary` if it's the friend's. Tied values and shared values (e.g. draws) in `textSecondary`.
+- Like the record, the green here is data, not an action. Keep everything else on the Stats screen neutral.
+
 ---
 
 ## 7. Charts (Swift Charts)

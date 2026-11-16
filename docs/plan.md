@@ -290,7 +290,20 @@ Below that a segmented control with 3 tabs: `"Overview"` · `"Add Match"` · `"S
 | `"Score Margin"` | Bar per match | Point/set/goal margin of each match (above 0 = you win) | `sets`/`points`/`penalties` | 2 |
 | `"Activity"` | Calendar heatmap | Days you played | always | 2 |
 
-**Sport-specific tiles** (only when exactly this sport is selected, from Phase 2):
+**`"Head to Head"`** (only when exactly one sport is selected, from Phase 1):
+Shows who is better in this sport. At the top the record for this sport (e.g. `"5 – 3"`) with the win share bar, below it one row per stat: your value left, label in the middle, the friend's value right. The better value is green if it's yours, normal text color if it's the friend's, grey if tied. All S2c filters (period, mode) apply. Tapping a row in `"By Sport"` selects that sport.
+
+| Sport | Rows |
+|---|---|
+| Badminton, Ping Pong | `"Wins"`, `"Sets won"`, `"Points won"`, `"Avg. points per set"`, `"Set win rate"`, `"Deuce sets won"` (sets that went past 21 or 11) |
+| Tennis, Padel | `"Wins"`, `"Sets won"`, `"Games won"`, `"Avg. games per set"`, `"Set win rate"`, `"Tiebreaks won"` |
+| Football | `"Wins"`, `"Draws"`, `"Goals"`, `"Avg. goals per match"`, `"Biggest win"` |
+| Basketball | `"Wins"`, `"Points"`, `"Avg. points per match"`, `"Biggest win"` |
+| Penalty Shootout | `"Wins"`, `"Goals"`, `"Conversion rate"`, `"Sudden death wins"` |
+| Boxing | `"Wins"`, `"Wins by KO/TKO"`, `"Wins by points"`, `"Draws"` |
+| Running | `"Wins"`, `"Draws"`, `"Best 100 m"` etc. (best time per distance, lower is better) |
+
+**More sport-specific tiles** (only when exactly this sport is selected, from Phase 2):
 
 | Sport | Tiles |
 |---|---|
@@ -540,6 +553,7 @@ Every phase ends with an app you can actually use.
 - [ ] S2a Overview (sport rows without Elo, Recent Matches, See all)
 - [ ] S2b Add Match for all duel sports in 1v1 mode (Badminton, Padel, Tennis, Ping Pong, Football, Basketball, Penalty Shootout, Boxing, Running 1v1)
 - [ ] S2c Stats: key figures, `"Wins by Sport"`, `"Record over Time"`, `"Win Rate"`, filters
+- [ ] S2c `"Head to Head"` per sport: who won more, sets/points/goals combined, sport-specific comparisons
 - [ ] S3 Match Detail with edit & delete
 - [ ] S9 Profile (profile, show/hide sports, reset)
 
@@ -550,7 +564,7 @@ Every phase ends with an app you can actually use.
 - [ ] Races: Go-Kart (`placement`) and Running with 3+ participants, conversion into duels
 - [ ] Elo calculation + tests, Elo in Overview, `"Elo History"` chart
 - [ ] Streaks & highlights
-- [ ] `"Score Margin"`, `"Activity"` and sport-specific tiles
+- [ ] `"Score Margin"`, `"Activity"` and the remaining sport-specific tiles (beyond `"Head to Head"`)
 - [ ] S5 Quick Add
 - [ ] Custom sports
 

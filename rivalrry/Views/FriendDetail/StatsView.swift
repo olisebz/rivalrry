@@ -51,6 +51,13 @@ struct StatsView: View {
                         StatTile(title: "Matches", value: "\(record.matches)")
                     }
 
+                    // Who is better in this sport, in detail (decision 8).
+                    if let sport {
+                        HeadToHeadCard(sport: sport, record: record,
+                                       rows: SportComparison.rows(for: sport, duels: duels, me: me),
+                                       friendName: friend.shortName)
+                    }
+
                     RecordOverTimeChart(points: Rivalry.cumulativeWins(duels), friendName: friend.shortName)
 
                     if sport == nil {
@@ -130,6 +137,10 @@ struct BySportList: View {
                                 .foregroundStyle(Color.rvTextPrimary)
                             Spacer()
                             RecordText(record: entry.record, font: .body.weight(.semibold).monospacedDigit())
+                            // Tapping opens the sport's "Head to Head".
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Color.rvTextTertiary)
                         }
                         WinShareBar(share: entry.record.winShare)
                     }
