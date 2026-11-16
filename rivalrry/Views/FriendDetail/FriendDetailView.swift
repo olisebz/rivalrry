@@ -75,10 +75,9 @@ struct FriendDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { menu }
         .navigationDestination(for: Match.self) { match in
-            // Placeholder until S3 Match Detail (Step 8).
-            Color.rvBackground
-                .navigationTitle(match.sportType.displayName)
-                .navigationBarTitleDisplayMode(.inline)
+            if let me {
+                MatchDetailView(match: match, me: me)
+            }
         }
         .sheet(isPresented: $isAddingMatch) {
             AddMatchView(me: me, friend: friend) {
@@ -107,8 +106,7 @@ struct FriendDetailView: View {
             withAnimation(.spring(duration: 0.3)) { showsSavedMessage = false }
         }
         .sheet(isPresented: $isEditingFriend) {
-            // Placeholder until S4 Add Friend / Edit Friend (Step 8).
-            placeholderSheet(title: "Edit Friend") { isEditingFriend = false }
+            FriendFormView(friend: friend)
         }
         .confirmationDialog("Delete \(friend.shortName)?", isPresented: $isConfirmingDelete,
                             titleVisibility: .visible) {
@@ -141,19 +139,6 @@ struct FriendDetailView: View {
                     .foregroundStyle(Color.rvTextPrimary)
             }
             .accessibilityLabel("More")
-        }
-    }
-
-    private func placeholderSheet(title: String, close: @escaping () -> Void) -> some View {
-        NavigationStack {
-            Color.rvBackground
-                .navigationTitle(title)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel", action: close)
-                    }
-                }
         }
     }
 }

@@ -3,11 +3,23 @@ import SwiftData
 
 @main
 struct RivalrryApp: App {
+    let container: ModelContainer
+
+    init() {
+        do {
+            container = try ModelContainer(for: Schema(AppSchema.models))
+        } catch {
+            fatalError("Could not open the database: \(error)")
+        }
+        // Placeholder "You" until onboarding (Step 9).
+        Player.ensureMe(in: container.mainContext)
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
         }
-        .modelContainer(for: AppSchema.models)
+        .modelContainer(container)
     }
 }
 

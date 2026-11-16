@@ -31,17 +31,7 @@ struct RivalsView: View {
                 FriendDetailView(friend: friend)
             }
             .sheet(isPresented: $isAddingFriend) {
-                // Placeholder until S4 Add Friend (Step 8).
-                NavigationStack {
-                    Color.rvBackground
-                        .navigationTitle("Add Friend")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Cancel") { isAddingFriend = false }
-                            }
-                        }
-                }
+                FriendFormView()
             }
         }
     }

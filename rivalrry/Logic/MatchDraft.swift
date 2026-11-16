@@ -170,14 +170,41 @@ struct MatchDraft: Equatable {
     /// Creates and inserts the match. Phase 1–2: status `Local`, counts immediately.
     @discardableResult
     func insertMatch(me: Player, friend: Player, into context: ModelContext) -> Match {
-        let match = Match(sportType: sport, mode: .oneVsOne, date: date,
-                          note: note.isEmpty ? nil : String(note.prefix(Self.noteLimit)),
-                          status: .local, createdBy: me)
+        let match = Match(sportType: sport, mode: .oneVsOne, date: date, status: .local, createdBy: me)
         context.insert(match)
+        match.participants = [MatchParticipant(player: me, side: .a), MatchParticipant(player: friend, side: .b)]
+        write(to: match, context: context)
+        return match
+    }
 
-        let mine = MatchParticipant(player: me, side: .a)
-        let theirs = MatchParticipant(player: friend, side: .b)
-        match.participants = [mine, theirs]
+    /// S3 "Edit": overwrites the result of an existing match.
+    func apply(to match: Match, context: ModelContext) {
+        // Replace the old details instead of patching them.
+        for set in match.sets { context.delete(set) }
+        for shot in match.penalties { context.delete(shot) }
+        if let fight = match.fight { context.delete(fight) }
+        match.sets = []
+        match.penalties = []
+        match.fight = nil
+        match.bestOf = nil
+        match.retiredSide = nil
+        match.penaltyShotsPerSide = nil
+        match.distanceMeters = nil
+        for participant in match.participants {
+            participant.timeMs = nil
+            participant.dnf = false
+        }
+
+        match.date = date
+        match.updatedAt = Date()
+        match.version += 1
+        write(to: match, context: context)
+    }
+
+    private func write(to match: Match, context: ModelContext) {
+        match.note = note.isEmpty ? nil : String(note.prefix(Self.noteLimit))
+        let mine = match.participants(on: .a).first
+        let theirs = match.participants(on: .b).first
 
         switch sport.scoringType {
         case .sets:
@@ -203,14 +230,56 @@ struct MatchDraft: Equatable {
                                       endRound: entry.endRound, totalRounds: entry.totalRounds)
         case .time:
             match.distanceMeters = distanceMeters
-            mine.dnf = dnfA
-            mine.timeMs = dnfA ? nil : TimeText.milliseconds(from: timeTextA)
-            theirs.dnf = dnfB
-            theirs.timeMs = dnfB ? nil : TimeText.milliseconds(from: timeTextB)
+            mine?.dnf = dnfA
+            mine?.timeMs = dnfA ? nil : TimeText.milliseconds(from: timeTextA)
+            theirs?.dnf = dnfB
+            theirs?.timeMs = dnfB ? nil : TimeText.milliseconds(from: timeTextB)
         case .placement, .winLoss:
             break
         }
-        return match
+    }
+
+    // MARK: - Editing
+
+    /// Loads a saved match back into the form (S3 "Edit"). Side A stays side A.
+    init(match: Match) {
+        self.init(sport: match.sportType)
+        date = match.date
+        note = match.note ?? ""
+
+        switch match.scoringType {
+        case .sets:
+            bestOf = match.bestOf ?? bestOf
+            sets = match.orderedSets.map {
+                SetEntry(scoreA: $0.scoreA, scoreB: $0.scoreB, tiebreakA: $0.tiebreakA, tiebreakB: $0.tiebreakB)
+            }
+            if sets.isEmpty { sets = [SetEntry(scoreA: 0, scoreB: 0)] }
+            isRetired = match.retiredSide != nil
+            retiredSide = match.retiredSide ?? .b
+        case .points:
+            scoreA = match.orderedSets.first?.scoreA ?? 0
+            scoreB = match.orderedSets.first?.scoreB ?? 0
+        case .penalties:
+            penaltyShotsPerSide = match.penaltyShotsPerSide ?? ResultRules.defaultPenaltyShots
+            penaltyShots = match.orderedPenalties.map(\.scored)
+        case .fight:
+            if let fight = match.fight {
+                fightWinner = fight.winnerSide
+                fightMethod = fight.method
+                fightRounds = fight.totalRounds
+                fightEndRound = fight.endRound ?? 1
+            }
+        case .time:
+            distanceMeters = match.distanceMeters
+            let a = match.participants(on: .a).first
+            let b = match.participants(on: .b).first
+            dnfA = a?.dnf ?? false
+            dnfB = b?.dnf ?? false
+            timeTextA = a?.timeMs.map { TimeText.text(milliseconds: $0) } ?? ""
+            timeTextB = b?.timeMs.map { TimeText.text(milliseconds: $0) } ?? ""
+        case .placement, .winLoss:
+            break
+        }
     }
 }
 

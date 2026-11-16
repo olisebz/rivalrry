@@ -98,26 +98,32 @@ struct EntryHeading: View {
 }
 
 /// S2b steps 3–4: result for the chosen sport, "More details", live preview and "Save Match".
+/// Also used for S3 "Edit": then it starts with the saved match and shows "Cancel" instead of "‹ Sport".
 struct MatchEntryView: View {
     let sport: SportType
     let me: Player?
     let friend: Player
     @Binding var isEdited: Bool
-    let onBack: () -> Void
+    /// "‹ Sport" when adding; `nil` when editing.
+    let onBack: (() -> Void)?
+    let onCancel: (() -> Void)?
     let onSave: (MatchDraft) -> Void
 
     @State private var draft: MatchDraft
     @State private var showsDetails = false
 
     init(sport: SportType, me: Player?, friend: Player, isEdited: Binding<Bool>,
-         onBack: @escaping () -> Void, onSave: @escaping (MatchDraft) -> Void) {
+         initialDraft: MatchDraft? = nil,
+         onBack: (() -> Void)? = nil, onCancel: (() -> Void)? = nil,
+         onSave: @escaping (MatchDraft) -> Void) {
         self.sport = sport
         self.me = me
         self.friend = friend
         self._isEdited = isEdited
         self.onBack = onBack
+        self.onCancel = onCancel
         self.onSave = onSave
-        self._draft = State(initialValue: MatchDraft(sport: sport))
+        self._draft = State(initialValue: initialDraft ?? MatchDraft(sport: sport))
     }
 
     var body: some View {
@@ -141,21 +147,28 @@ struct MatchEntryView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Color.rvBackground)
         .safeAreaInset(edge: .bottom) { saveArea }
-        .navigationTitle("Add Match")
+        .navigationTitle(onBack == nil ? "Edit Match" : "Add Match")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: onBack) {
-                    // Icon + text: toolbars would otherwise show only the icon.
-                    HStack(spacing: Spacing.xs) {
-                        Image(systemName: "chevron.left")
-                            .fontWeight(.semibold)
-                        Text("Sport")
-                    }
-                    .padding(.horizontal, Spacing.xs)
+            if let onCancel {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
                 }
-                .accessibilityLabel("Sport")
+            }
+            if let onBack {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: onBack) {
+                        // Icon + text: toolbars would otherwise show only the icon.
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "chevron.left")
+                                .fontWeight(.semibold)
+                            Text("Sport")
+                        }
+                        .padding(.horizontal, Spacing.xs)
+                    }
+                    .accessibilityLabel("Sport")
+                }
             }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
