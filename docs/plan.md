@@ -560,6 +560,8 @@ Every phase ends with an app you can actually use.
 ✅ **Done when:** You can log a badminton match against Max in under 15 seconds and the record + charts are correct.
 
 ### Phase 2 – More Sports & Better Stats (still local)
+
+> **Placement (decision 9):** Overview stays header + `"Recent Matches"` + `"Add Match"`. Elo is shown in `"By Sport"` and `"Head to Head"` (S2c); `"Highlights"` and `"Together"` are sections in Stats, not in Overview.
 - [ ] Team mode (doubles/2v2 etc.) incl. `"Together"` section
 - [ ] Races: Go-Kart (`placement`) and Running with 3+ participants, conversion into duels
 - [ ] Elo calculation + tests, Elo in Overview, `"Elo History"` chart

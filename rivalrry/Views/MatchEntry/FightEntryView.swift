@@ -4,12 +4,14 @@ import SwiftUI
 struct FightEntryView: View {
     @Binding var draft: MatchDraft
     let friendName: String
+    /// "You", or the team name in `Team` mode.
+    var myName = "You"
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
             section("Winner") {
                 Picker("Winner", selection: $draft.fightWinner) {
-                    Text("You").tag(Side?.some(.a))
+                    Text(myName).tag(Side?.some(.a))
                     Text(friendName).tag(Side?.some(.b))
                     Text("Draw").tag(Side?.none)
                 }

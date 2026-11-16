@@ -4,6 +4,8 @@ import SwiftUI
 struct SetsEntryView: View {
     @Binding var draft: MatchDraft
     let friendName: String
+    /// "You", or the team name in `Team` mode.
+    var myName = "You"
 
     private let labelWidth: CGFloat = 48
 
@@ -21,7 +23,7 @@ struct SetsEntryView: View {
 
             HStack(spacing: 0) {
                 Color.clear.frame(width: labelWidth, height: 1)
-                columnTitle("You")
+                columnTitle(myName)
                 columnTitle(friendName)
             }
 
@@ -59,7 +61,7 @@ struct SetsEntryView: View {
                         .font(.subheadline)
                         .foregroundStyle(Color.rvTextSecondary)
                     Picker("Who gave up?", selection: $draft.retiredSide) {
-                        Text("You").tag(Side.a)
+                        Text(myName).tag(Side.a)
                         Text(friendName).tag(Side.b)
                     }
                     .pickerStyle(.segmented)
@@ -83,7 +85,7 @@ struct SetsEntryView: View {
                 .font(.subheadline)
                 .foregroundStyle(Color.rvTextSecondary)
                 .frame(width: labelWidth, alignment: .leading)
-            ScoreStepper(value: setBinding(index, \.scoreA), label: "Set \(index + 1), You")
+            ScoreStepper(value: setBinding(index, \.scoreA), label: "Set \(index + 1), \(myName)")
                 .frame(maxWidth: .infinity)
             ScoreStepper(value: setBinding(index, \.scoreB), label: "Set \(index + 1), \(friendName)")
                 .frame(maxWidth: .infinity)
@@ -95,7 +97,7 @@ struct SetsEntryView: View {
                     .foregroundStyle(Color.rvTextSecondary)
                     .frame(width: labelWidth, alignment: .leading)
                 ScoreStepper(value: tiebreakBinding(index, side: .a), font: .title2.weight(.semibold).monospacedDigit(),
-                             label: "Tiebreak set \(index + 1), You")
+                             label: "Tiebreak set \(index + 1), \(myName)")
                     .frame(maxWidth: .infinity)
                 ScoreStepper(value: tiebreakBinding(index, side: .b), font: .title2.weight(.semibold).monospacedDigit(),
                              label: "Tiebreak set \(index + 1), \(friendName)")

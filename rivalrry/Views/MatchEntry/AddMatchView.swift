@@ -115,6 +115,7 @@ struct MatchEntryView: View {
 
     @State private var draft: MatchDraft
     @State private var showsDetails = false
+    @Query private var players: [Player]
 
     init(sport: SportType, me: Player?, friend: Player, isEdited: Binding<Bool>,
          initialDraft: MatchDraft? = nil,
@@ -137,12 +138,18 @@ struct MatchEntryView: View {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 EntryHeading(title: sport.displayName, friendName: friend.shortName)
 
+                // Mode & participants, only for sports with a team mode (plan.md §2.1).
+                if draft.allowsTeams, !draft.teamsLocked {
+                    TeamEditorView(draft: $draft, me: me, friend: friend, players: players)
+                }
+
+                let names = draft.names(friendName: friend.shortName)
                 switch sport.scoringType {
-                case .sets: SetsEntryView(draft: $draft, friendName: friend.shortName)
-                case .points: PointsEntryView(draft: $draft, friendName: friend.shortName)
-                case .penalties: PenaltiesEntryView(draft: $draft, friendName: friend.shortName)
-                case .fight: FightEntryView(draft: $draft, friendName: friend.shortName)
-                case .time: TimeEntryView(draft: $draft, friendName: friend.shortName)
+                case .sets: SetsEntryView(draft: $draft, friendName: names.b, myName: names.a)
+                case .points: PointsEntryView(draft: $draft, friendName: names.b, myName: names.a)
+                case .penalties: PenaltiesEntryView(draft: $draft, friendName: names.b, myName: names.a)
+                case .fight: FightEntryView(draft: $draft, friendName: names.b, myName: names.a)
+                case .time: TimeEntryView(draft: $draft, friendName: names.b, myName: names.a)
                 case .placement, .winLoss: EmptyView()
                 }
 
@@ -290,6 +297,21 @@ struct MatchEntryView: View {
         MatchEntryView(sport: .penaltyShootout, me: SampleData.player("Alex Morgan", in: container),
                        friend: SampleData.player("Max Keller", in: container),
                        isEdited: .constant(false), onBack: {}, onSave: { _ in })
+    }
+    .modelContainer(container)
+}
+
+#Preview("Padel doubles") {
+    let container = SampleData.container()
+    var draft = MatchDraft(sport: .padel)
+    draft.mode = .team
+    draft.partners = [SampleData.player("Tom Berger", in: container)]
+    draft.opponents = [SampleData.player("Lukas Huber", in: container)]
+    draft.sets = [SetEntry(scoreA: 6, scoreB: 4)]
+    return NavigationStack {
+        MatchEntryView(sport: .padel, me: SampleData.player("Alex Morgan", in: container),
+                       friend: SampleData.player("Max Keller", in: container),
+                       isEdited: .constant(true), initialDraft: draft, onBack: {}, onSave: { _ in })
     }
     .modelContainer(container)
 }

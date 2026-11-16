@@ -4,6 +4,8 @@ import SwiftUI
 struct TimeEntryView: View {
     @Binding var draft: MatchDraft
     let friendName: String
+    /// "You", or the team name in `Team` mode.
+    var myName = "You"
     @State private var isCustomDistance = false
 
     var body: some View {
@@ -30,7 +32,7 @@ struct TimeEntryView: View {
                 }
             }
 
-            runner("You", time: $draft.timeTextA, dnf: $draft.dnfA)
+            runner(myName, time: $draft.timeTextA, dnf: $draft.dnfA)
             runner(friendName, time: $draft.timeTextB, dnf: $draft.dnfB)
         }
         .onAppear {

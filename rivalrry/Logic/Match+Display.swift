@@ -36,8 +36,33 @@ extension Match {
     /// Second row line: "Nov 12 · Best of 3".
     func detailText(now: Date = Date()) -> String {
         var parts = [MatchDate.text(for: date, now: now)]
+        if mode == .team { parts.append(teamFormat) }
         if scoringType == .sets, let bestOf { parts.append("Best of \(bestOf)") }
         return parts.joined(separator: " · ")
+    }
+}
+
+extension Match {
+    /// "2v2", "5v5" for team matches.
+    var teamFormat: String {
+        "\(participants(on: .a).count)v\(participants(on: .b).count)"
+    }
+}
+
+extension Rivalry {
+
+    /// "Together": matches where you and `friend` were on the same team (plan.md §4 S2a, decision 9).
+    static func togetherRecord(of me: Player, with friend: Player, in matches: [Match],
+                               filter: DuelFilter = DuelFilter(mode: .team)) -> Record {
+        var record = Record()
+        for match in matches where match.mode == .team && match.countsTowardRecord
+            && (filter.sport == nil || match.sportType == filter.sport)
+            && (filter.since.map { match.date >= $0 } ?? true) {
+            guard let mySide = match.side(of: me), match.side(of: friend) == mySide,
+                  let outcome = match.outcome(for: me) else { continue }
+            record.add(outcome)
+        }
+        return record
     }
 }
 

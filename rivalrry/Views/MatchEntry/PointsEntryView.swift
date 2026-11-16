@@ -4,10 +4,12 @@ import SwiftUI
 struct PointsEntryView: View {
     @Binding var draft: MatchDraft
     let friendName: String
+    /// "You", or the team name in `Team` mode.
+    var myName = "You"
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.m) {
-            counter(title: "You", value: $draft.scoreA)
+            counter(title: myName, value: $draft.scoreA)
             counter(title: friendName, value: $draft.scoreB)
         }
     }

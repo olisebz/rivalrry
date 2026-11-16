@@ -40,6 +40,9 @@ struct StatsView: View {
         let duels = Rivalry.duels(of: me, against: friend, in: allMatches, filter: filter)
         let record = Rivalry.record(of: me, against: friend, in: allMatches, filter: filter)
         let bySport = Rivalry.recordsBySport(of: me, against: friend, in: allMatches, filter: filter)
+        // Partners, not opponents: independent of the "Mode" filter (decision 9).
+        let together = Rivalry.togetherRecord(of: me, with: friend, in: allMatches,
+                                              filter: DuelFilter(sport: sport, mode: .team, since: period.since()))
 
         VStack(alignment: .leading, spacing: Spacing.l) {
             filters(sports: sports)
@@ -76,6 +79,11 @@ struct StatsView: View {
                     }
                     .padding(.horizontal, Spacing.m)
                 }
+            }
+
+            if together.matches > 0 {
+                TogetherCard(record: together, friendName: friend.shortName)
+                    .padding(.horizontal, Spacing.m)
             }
         }
     }
@@ -153,5 +161,31 @@ struct BySportList: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+}
+
+/// "Together": your record when you and the friend were on the same team (plan.md §4 S2a, decision 9).
+struct TogetherCard: View {
+    let record: Record
+    let friendName: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("Together")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Color.rvTextPrimary)
+            HStack {
+                Text("As partners")
+                    .font(.body)
+                    .foregroundStyle(Color.rvTextPrimary)
+                Spacer()
+                RecordText(record: record, font: .body.weight(.semibold).monospacedDigit())
+            }
+            WinShareBar(share: record.winShare)
+            Text("You and \(friendName) on the same team")
+                .font(.subheadline)
+                .foregroundStyle(Color.rvTextSecondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 }

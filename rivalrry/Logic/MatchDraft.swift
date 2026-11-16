@@ -5,6 +5,14 @@ import SwiftData
 struct MatchDraft: Equatable {
     let sport: SportType
 
+    // mode & participants (Phase 2). In `Team` mode you and the friend are opponents;
+    // `partners` play with you (side A), `opponents` with the friend (side B).
+    var mode: MatchMode = .oneVsOne
+    var partners: [Player] = []
+    var opponents: [Player] = []
+    /// Editing a saved team match keeps its teams (only the result can change).
+    var teamsLocked = false
+
     // sets
     var bestOf: Int
     var sets: [SetEntry] = [SetEntry(scoreA: 0, scoreB: 0)]
@@ -49,6 +57,7 @@ struct MatchDraft: Equatable {
     // MARK: - Validation
 
     func validate() -> Result<MatchResult, ResultIssue> {
+        if mode == .team, let issue = teamIssue { return .failure(issue) }
         switch sport.scoringType {
         case .sets:
             return ResultRules.validateSets(effectiveSets, bestOf: bestOf, sport: sport,
@@ -71,18 +80,57 @@ struct MatchDraft: Equatable {
     var isValid: Bool { (try? validate().get()) != nil }
 
     /// Live preview: "You win 2–1", "Max wins 3–2", "Draw" (plan.md §4 S2b).
+    /// In `Team` mode: "You win 2–1" / "Max & Lukas win 2–1".
     func previewText(friendName: String) -> String? {
         guard let result = try? validate().get() else { return nil }
         switch result.outcome {
         case .draw:
             return "Draw"
         case .win(let side):
-            var text = side == .a ? "You win" : "\(friendName) wins"
+            let theirName = mode == .team ? teamBName(friendName: friendName) : friendName
+            var text = side == .a ? "You win" : "\(theirName) \(mode == .team && !opponents.isEmpty ? "win" : "wins")"
             if let a = result.scoreA, let b = result.scoreB {
                 text += side == .a ? " \(a)–\(b)" : " \(b)–\(a)"
             }
             return text
         }
+    }
+
+    // MARK: - Team
+
+    /// Whether the sport can be played in teams (plan.md §2.1).
+    var allowsTeams: Bool { sport.teamSizes != nil }
+
+    /// Team rules: both teams the same size, size allowed for the sport (plan.md §4 S2b).
+    var teamIssue: ResultIssue? {
+        guard let sizes = sport.teamSizes else { return .invalidFormat }
+        let a = partners.count + 1, b = opponents.count + 1
+        if a != b { return .teamsUnequal }
+        if !sizes.contains(a) { return .teamSize(sizes) }
+        return nil
+    }
+
+    /// "You & Tom" for 2 players, "Your team" for more.
+    var teamAName: String {
+        partners.count == 1 ? "You & \(partners[0].shortName)" : partners.isEmpty ? "You" : "Your team"
+    }
+
+    /// "Max & Lukas" for 2 players, "Max's team" for more.
+    func teamBName(friendName: String) -> String {
+        opponents.count == 1 ? "\(friendName) & \(opponents[0].shortName)"
+            : opponents.isEmpty ? friendName : "\(friendName)'s team"
+    }
+
+    /// Column labels for the result entry: "You" / "Max", or the team names.
+    func names(friendName: String) -> (a: String, b: String) {
+        mode == .team ? (teamAName, teamBName(friendName: friendName)) : ("You", friendName)
+    }
+
+    /// Players that can still join a team: not you, not the friend, not already picked, not archived.
+    func availablePlayers(from players: [Player], friend: Player) -> [Player] {
+        let taken = Set(partners.map(\.id) + opponents.map(\.id) + [friend.id])
+        return players.filter { !$0.isMe && !$0.isArchived && !taken.contains($0.id) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     // MARK: - Sets
@@ -178,9 +226,13 @@ struct MatchDraft: Equatable {
     /// Creates and inserts the match. Phase 1–2: status `Local`, counts immediately.
     @discardableResult
     func insertMatch(me: Player, friend: Player, into context: ModelContext) -> Match {
-        let match = Match(sportType: sport, mode: .oneVsOne, date: date, status: .local, createdBy: me)
+        let match = Match(sportType: sport, mode: mode, date: date, status: .local, createdBy: me)
         context.insert(match)
         match.participants = [MatchParticipant(player: me, side: .a), MatchParticipant(player: friend, side: .b)]
+        if mode == .team {
+            match.participants += partners.map { MatchParticipant(player: $0, side: .a) }
+                + opponents.map { MatchParticipant(player: $0, side: .b) }
+        }
         write(to: match, context: context)
         return match
     }
@@ -250,10 +302,21 @@ struct MatchDraft: Equatable {
     // MARK: - Editing
 
     /// Loads a saved match back into the form (S3 "Edit"). Side A stays side A.
-    init(match: Match) {
+    /// - Parameter friend: the friend whose page the match was opened from (side B).
+    init(match: Match, friend: Player? = nil) {
         self.init(sport: match.sportType)
         date = match.date
         note = match.note ?? ""
+        mode = match.mode
+        if match.mode == .team {
+            teamsLocked = true
+            let mine = match.participants(on: .a).compactMap(\.player)
+            let theirs = match.participants(on: .b).compactMap(\.player)
+            partners = mine.filter { !$0.isMe }
+            // Everyone on side B except one player who stands for "the friend".
+            let anchor = theirs.first { $0.id == friend?.id } ?? theirs.first
+            opponents = theirs.filter { $0.id != anchor?.id }
+        }
 
         switch match.scoringType {
         case .sets:

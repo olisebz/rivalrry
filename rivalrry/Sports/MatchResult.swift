@@ -50,6 +50,9 @@ enum ResultIssue: Error, Equatable {
     case endRoundRequired
     case invalidEndRound
     case invalidRoundScore(round: Int)
+    // team
+    case teamsUnequal
+    case teamSize(ClosedRange<Int>)
     // time
     case invalidDistance
     case missingTime
@@ -96,6 +99,12 @@ enum ResultIssue: Error, Equatable {
             "The fight can't end after the last round."
         case .invalidRoundScore(let round):
             "Round \(round): use the 10-point system, e.g. 10–9."
+        case .teamsUnequal:
+            "Both teams need the same number of players."
+        case .teamSize(let sizes):
+            sizes.lowerBound == sizes.upperBound
+                ? "Each team needs \(sizes.lowerBound) players."
+                : "Each team needs \(sizes.lowerBound)–\(sizes.upperBound) players."
         case .invalidDistance:
             "Enter a distance."
         case .missingTime:

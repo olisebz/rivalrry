@@ -5,6 +5,8 @@ import SwiftUI
 struct PenaltiesEntryView: View {
     @Binding var draft: MatchDraft
     let friendName: String
+    /// "You", or the team name in `Team` mode.
+    var myName = "You"
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
@@ -15,7 +17,7 @@ struct PenaltiesEntryView: View {
 
             HStack(alignment: .top, spacing: Spacing.s) {
                 VStack(alignment: .leading, spacing: Spacing.s) {
-                    name("You")
+                    name(myName)
                     name(friendName)
                 }
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -58,7 +60,7 @@ struct PenaltiesEntryView: View {
     }
 
     private func accessibilityText(_ state: MatchDraft.ShotState, round: Int, side: Side) -> String {
-        let who = side == .a ? "You" : friendName
+        let who = side == .a ? myName : friendName
         let what = switch state {
         case .scored: "goal"
         case .missed: "miss"

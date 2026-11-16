@@ -5,6 +5,8 @@ import SwiftData
 struct MatchDetailView: View {
     let match: Match
     let me: Player
+    /// The friend whose page this was opened from. In team matches, side B has several players.
+    var friend: Player? = nil
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -13,8 +15,15 @@ struct MatchDetailView: View {
     @State private var isConfirmingDelete = false
     @State private var deleteOnDisappear = false
 
-    private var sideA: MatchParticipant? { match.participants(on: .a).first }
-    private var sideB: MatchParticipant? { match.participants(on: .b).first }
+    // SwiftData doesn't keep the order of participants: pick you on side A and the friend on side B.
+    private var sideA: MatchParticipant? {
+        let side = match.participants(on: .a)
+        return side.first { $0.player?.isMe == true } ?? side.first
+    }
+    private var sideB: MatchParticipant? {
+        let side = match.participants(on: .b)
+        return side.first { $0.player?.id == friend?.id } ?? side.first
+    }
 
     var body: some View {
         ScrollView {
@@ -60,10 +69,11 @@ struct MatchDetailView: View {
         }
     }
 
-    /// Phase 1 can only edit 1v1 matches of the Phase 1 sports, with both players still there.
+    /// 1v1 and team matches of the supported sports can be edited, if no player was deleted.
+    /// In team matches only the result changes, the teams stay as they are.
     private var canEdit: Bool {
-        match.mode == .oneVsOne && SportType.phase1Sports.contains(match.sportType)
-            && sideA?.player != nil && sideB?.player != nil
+        match.mode != .race && SportType.phase1Sports.contains(match.sportType)
+            && !match.participants.isEmpty && match.participants.allSatisfy { $0.player != nil }
     }
 
     // MARK: - Heading
@@ -90,7 +100,7 @@ struct MatchDetailView: View {
     private var subtitle: String {
         let mode = switch match.mode {
         case .oneVsOne: "1v1"
-        case .team: "Team"
+        case .team: match.teamFormat
         case .race: "Race"
         }
         let date = match.date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened)
@@ -107,9 +117,15 @@ struct MatchDetailView: View {
 
         return VStack(spacing: Spacing.m) {
             HStack(alignment: .top) {
-                player(sideA, isWinner: winner == .a)
-                Spacer()
-                player(sideB, isWinner: winner == .b)
+                if match.mode == .team {
+                    team(.a, isWinner: winner == .a)
+                    Spacer()
+                    team(.b, isWinner: winner == .b)
+                } else {
+                    player(sideA, isWinner: winner == .a)
+                    Spacer()
+                    player(sideB, isWinner: winner == .b)
+                }
             }
             Text(match.scoreText(for: me))
                 .font(.rvScoreLarge)
@@ -143,6 +159,36 @@ struct MatchDetailView: View {
                 .background(isWinner ? Color.rvAccentSoft : .clear, in: Capsule())
         }
         .frame(minWidth: 96)
+    }
+
+    /// A team: overlapping avatars and all names, e.g. "You & Tom".
+    private func team(_ side: Side, isWinner: Bool) -> some View {
+        // You (or the friend) first, then the others.
+        let anchor = side == .a ? sideA : sideB
+        let members = [anchor].compactMap { $0 } + match.participants(on: side).filter { $0 !== anchor }
+        let names = members.map { $0.player.map { $0.isMe ? "You" : $0.shortName } ?? "Deleted Player" }
+
+        return VStack(spacing: Spacing.s) {
+            HStack(spacing: -16) {
+                ForEach(Array(members.prefix(4).enumerated()), id: \.offset) { _, member in
+                    AvatarView(name: member.player?.name ?? "?", colorHex: member.player?.colorHex ?? "6E6E73",
+                               photo: member.player?.photo, size: 48)
+                        .overlay(Circle().strokeBorder(Color.rvSurface, lineWidth: 2))
+                }
+            }
+            Text(names.joined(separator: " & "))
+                .font(.headline)
+                .foregroundStyle(isWinner ? Color.rvAccent : Color.rvTextPrimary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+            Text(isWinner ? "Winner" : " ")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(Color.rvAccent)
+                .padding(.horizontal, Spacing.s)
+                .padding(.vertical, 2)
+                .background(isWinner ? Color.rvAccentSoft : .clear, in: Capsule())
+        }
+        .frame(maxWidth: 150)
     }
 
     // MARK: - Details per scoring type
@@ -285,7 +331,7 @@ struct MatchDetailView: View {
         if let friend = sideB?.player {
             NavigationStack {
                 MatchEntryView(sport: match.sportType, me: me, friend: friend, isEdited: $isEdited,
-                               initialDraft: MatchDraft(match: match),
+                               initialDraft: MatchDraft(match: match, friend: friend),
                                onCancel: { isEditing = false }) { draft in
                     guard draft.isValid else { return }
                     draft.apply(to: match, context: context)

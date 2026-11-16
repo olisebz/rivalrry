@@ -20,13 +20,17 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   7. Formats per sport exactly as in plan.md 2.2 (Badminton only Best of 1/3, Ping Pong default Best of 5).
   8. Stats has a "Head to Head" card per sport (plan.md S2c, design.md §6.12): who won more, sets/points/goals
      combined and sport-specific comparisons. This is Phase 1, pulled forward from the Phase 2 sport tiles.
+  9. Phase 2 keeps decision 2: Overview stays header + "Recent Matches" + "Add Match". Elo goes into
+     "By Sport" and "Head to Head"; "Highlights" and "Together" are sections in Stats.
 
 ## Way of working
-- ONLY Phase 1, in small steps. After each step: build the project, run the tests,
+- Phase 1 is done. Now: ONLY Phase 2, in small steps. After each step: build the project, run the tests,
   summarize briefly, then STOP and wait for an OK.
-- Steps: 1 project/tokens/model · 2 result rules + validation (sets, points, penalties, fight) + tests ·
-  3 record/duel logic + tests · 4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match (sheet) ·
-  7 S2c Stats · 8 S3 Match Detail, S4 Add Friend · 9 S0 Onboarding, S9 Profile · 10 Head to Head per sport
+- Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
+  4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
+- Phase 2 steps: 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·
+  4 Streaks & Highlights · 5 "Score Margin", "Activity", sport tiles · 6 S5 Quick Add ("+" button) ·
+  7 Custom sports
 - All texts in the app in English and exactly as in plan.md.
 - If something is unclear or you want to deviate from the plan: ask first.
 - Sample data for previews: design.md §9.4 (Max, Tom, Lukas, Jonas).

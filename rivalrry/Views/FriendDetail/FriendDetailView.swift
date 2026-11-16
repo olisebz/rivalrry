@@ -76,7 +76,7 @@ struct FriendDetailView: View {
         .toolbar { menu }
         .navigationDestination(for: Match.self) { match in
             if let me {
-                MatchDetailView(match: match, me: me)
+                MatchDetailView(match: match, me: me, friend: friend)
             }
         }
         .sheet(isPresented: $isAddingMatch) {

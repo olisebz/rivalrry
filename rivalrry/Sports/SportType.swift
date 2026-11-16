@@ -113,6 +113,16 @@ extension SportType {
         }
     }
 
+    /// Players per team in `Team` mode (plan.md §2.1). `nil` if the sport has no team mode.
+    var teamSizes: ClosedRange<Int>? {
+        switch self {
+        case .badminton, .padel, .tennis, .pingPong: 2...2       // doubles
+        case .basketball: 2...5
+        case .football, .penaltyShootout: 2...11                 // "any size"
+        default: nil
+        }
+    }
+
     var allowsDraw: Bool {
         switch self {
         case .football, .boxing, .running: true
