@@ -1,20 +1,32 @@
 import SwiftUI
 
-/// S2b step 1: simple 3-column grid of sports, no "Recent", no categories (decision 3).
+/// Simple 3-column grid of sports, no "Recent", no categories (decision 3).
+/// S2b picks one sport, S0 picks several favorites.
 struct SportGridView: View {
-    @Binding var selection: SportType?
+    let sports: [SportType]
+    let isSelected: (SportType) -> Bool
+    let toggle: (SportType) -> Void
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: Spacing.s), count: 3)
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: Spacing.s) {
-            ForEach(SportType.phase1Sports) { sport in
-                SportTile(sport: sport, isSelected: selection == sport) {
-                    withAnimation(.spring(duration: 0.3)) { selection = sport }
+            ForEach(sports) { sport in
+                SportTile(sport: sport, isSelected: isSelected(sport)) {
+                    withAnimation(.spring(duration: 0.3)) { toggle(sport) }
                 }
             }
         }
         .padding(.horizontal, Spacing.m)
+    }
+}
+
+extension SportGridView {
+    /// Single choice (S2b).
+    init(sports: [SportType], selection: Binding<SportType?>) {
+        self.init(sports: sports,
+                  isSelected: { selection.wrappedValue == $0 },
+                  toggle: { selection.wrappedValue = $0 })
     }
 }
 

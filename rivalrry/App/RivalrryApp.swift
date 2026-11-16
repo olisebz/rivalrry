@@ -11,7 +11,7 @@ struct RivalrryApp: App {
         } catch {
             fatalError("Could not open the database: \(error)")
         }
-        // Placeholder "You" until onboarding (Step 9).
+        // Make sure "me" always exists; onboarding (S0) gives it a name.
         Player.ensureMe(in: container.mainContext)
     }
 

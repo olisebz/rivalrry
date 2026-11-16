@@ -15,6 +15,8 @@ struct AddMatchView: View {
     @State private var path: [SportType] = []
     @State private var isEdited = false
     @State private var isConfirmingDiscard = false
+    @AppStorage(SportSettings.favoritesKey) private var favoritesRaw = ""
+    @AppStorage(SportSettings.hiddenKey) private var hiddenRaw = ""
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -22,7 +24,9 @@ struct AddMatchView: View {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     EntryHeading(title: "Choose a sport", friendName: friend.shortName)
                         .padding(.horizontal, Spacing.m)
-                    SportGridView(selection: $selectedSport)
+                    SportGridView(sports: SportSettings.entrySports(favorites: SportSettings.decode(favoritesRaw),
+                                                                    hidden: SportSettings.decode(hiddenRaw)),
+                                  selection: $selectedSport)
                 }
                 .padding(.top, Spacing.s)
             }
@@ -123,7 +127,9 @@ struct MatchEntryView: View {
         self.onBack = onBack
         self.onCancel = onCancel
         self.onSave = onSave
-        self._draft = State(initialValue: initialDraft ?? MatchDraft(sport: sport))
+        // Default format from S9 "Sports" (plan.md §4 S9).
+        self._draft = State(initialValue: initialDraft
+                                ?? MatchDraft(sport: sport, bestOf: SportSettings.defaultBestOf(for: sport)))
     }
 
     var body: some View {

@@ -22,7 +22,8 @@ extension Match {
             return flip ? "\(b) – \(a)" : "\(a) – \(b)"
         case .fight:
             guard let fight else { return "–" }
-            return result.outcome == .draw ? "Draw" : fight.method.displayName
+            if case .draw = result.outcome { return "Draw" }
+            return fight.method.displayName
         case .time:
             let mine = participants(on: mySide).first
             let theirs = participants(on: mySide.opponent).first

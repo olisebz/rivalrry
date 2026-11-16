@@ -37,8 +37,7 @@ enum FriendForm {
 }
 
 extension Player {
-    /// Until onboarding (S0) exists, a placeholder "You" makes sure matches can be saved.
-    /// Onboarding later renames this player instead of creating a second one.
+    /// Your own player. Created as "You" if missing; onboarding (S0) renames it instead of creating a second one.
     @discardableResult
     static func ensureMe(in context: ModelContext) -> Player {
         let players = (try? context.fetch(FetchDescriptor<Player>())) ?? []

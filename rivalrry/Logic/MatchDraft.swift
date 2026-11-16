@@ -39,9 +39,11 @@ struct MatchDraft: Equatable {
 
     static let noteLimit = 200
 
-    init(sport: SportType) {
+    /// - Parameter bestOf: default format, e.g. from S9 settings. Falls back to plan.md §2.2.
+    init(sport: SportType, bestOf: Int? = nil) {
         self.sport = sport
-        self.bestOf = sport.defaultBestOf ?? 1
+        let fallback = sport.defaultBestOf ?? 1
+        self.bestOf = bestOf.flatMap { sport.bestOfOptions.contains($0) ? $0 : nil } ?? fallback
     }
 
     // MARK: - Validation
