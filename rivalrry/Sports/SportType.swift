@@ -8,10 +8,10 @@ enum SportType: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Sports that can be logged in Phase 1: all duel sports in 1v1 (plan.md §8, Phase 1).
+    /// Built-in sports that can be logged: all duel sports (Phase 1) plus Go-Kart races (Phase 2).
     static let phase1Sports: [SportType] = [
         .badminton, .padel, .tennis, .pingPong, .football,
-        .basketball, .penaltyShootout, .boxing, .running,
+        .basketball, .penaltyShootout, .boxing, .goKart, .running,
     ]
 }
 

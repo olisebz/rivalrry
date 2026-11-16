@@ -53,6 +53,9 @@ enum ResultIssue: Error, Equatable {
     // team
     case teamsUnequal
     case teamSize(ClosedRange<Int>)
+    // race
+    case raceSize
+    case invalidLapTime
     // time
     case invalidDistance
     case missingTime
@@ -105,6 +108,10 @@ enum ResultIssue: Error, Equatable {
             sizes.lowerBound == sizes.upperBound
                 ? "Each team needs \(sizes.lowerBound) players."
                 : "Each team needs \(sizes.lowerBound)–\(sizes.upperBound) players."
+        case .raceSize:
+            "A race needs 2–12 racers."
+        case .invalidLapTime:
+            "Enter laps as m:ss.SSS, e.g. 1:02.345."
         case .invalidDistance:
             "Enter a distance."
         case .missingTime:

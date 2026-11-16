@@ -2,9 +2,17 @@ import Foundation
 import SwiftData
 
 extension Match {
-    /// Win, loss or draw from `player`'s point of view. `nil` without a valid result or for races.
+    /// Win, loss or draw from `player`'s point of view. `nil` without a valid result.
+    /// Race: 1st place alone = win, shared 1st place = draw, otherwise loss.
     func outcome(for player: Player) -> DuelOutcome? {
-        guard mode != .race, let mySide = side(of: player), let result else { return nil }
+        if mode == .race {
+            guard isValidRace, includes(player) else { return nil }
+            let place = racePlace(of: player)
+            guard place == 1 else { return .loss }
+            let firsts = participants.filter { racePlace(of: $0) == 1 }.count
+            return firsts > 1 ? .draw : .win
+        }
+        guard let mySide = side(of: player), let result else { return nil }
         switch result.outcome {
         case .draw: return .draw
         case .win(let side): return side == mySide ? .win : .loss
@@ -13,6 +21,12 @@ extension Match {
 
     /// Result from `player`'s point of view, own score first: "2 – 1", "KO", "12.34 – 12.90".
     func scoreText(for player: Player) -> String {
+        // Race: "2nd of 4", or "DNF".
+        if mode == .race {
+            guard isValidRace, includes(player) else { return "–" }
+            guard let place = racePlace(of: player) else { return "DNF" }
+            return "\(Ordinal.text(place)) of \(participants.count)"
+        }
         guard let mySide = side(of: player), let result else { return "–" }
         let flip = mySide == .b
 
@@ -37,6 +51,8 @@ extension Match {
     func detailText(now: Date = Date()) -> String {
         var parts = [MatchDate.text(for: date, now: now)]
         if mode == .team { parts.append(teamFormat) }
+        if mode == .race { parts.append("\(participants.count) racers") }
+        if scoringType == .time, let distanceMeters { parts.append(TimeText.distance(distanceMeters)) }
         if scoringType == .sets, let bestOf { parts.append("Best of \(bestOf)") }
         return parts.joined(separator: " · ")
     }

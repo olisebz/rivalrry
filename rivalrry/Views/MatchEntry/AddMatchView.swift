@@ -129,8 +129,10 @@ struct MatchEntryView: View {
         self.onCancel = onCancel
         self.onSave = onSave
         // Default format from S9 "Sports" (plan.md §4 S9).
-        self._draft = State(initialValue: initialDraft
-                                ?? MatchDraft(sport: sport, bestOf: SportSettings.defaultBestOf(for: sport)))
+        var start = initialDraft ?? MatchDraft(sport: sport, bestOf: SportSettings.defaultBestOf(for: sport))
+        // Go-Kart starts with you and the friend on the grid.
+        if let me { start.setUpRace(me: me, friend: friend) }
+        self._draft = State(initialValue: start)
     }
 
     var body: some View {
@@ -149,8 +151,13 @@ struct MatchEntryView: View {
                 case .points: PointsEntryView(draft: $draft, friendName: names.b, myName: names.a)
                 case .penalties: PenaltiesEntryView(draft: $draft, friendName: names.b, myName: names.a)
                 case .fight: FightEntryView(draft: $draft, friendName: names.b, myName: names.a)
-                case .time: TimeEntryView(draft: $draft, friendName: names.b, myName: names.a)
-                case .placement, .winLoss: EmptyView()
+                case .time:
+                    TimeEntryView(draft: $draft, friendName: names.b, myName: names.a,
+                                  available: draft.availablePlayers(from: players, friend: friend))
+                case .placement:
+                    RaceEntryView(draft: $draft, friend: friend,
+                                  available: draft.availablePlayers(from: players, friend: friend))
+                case .winLoss: EmptyView()
                 }
 
                 moreDetails
@@ -189,6 +196,7 @@ struct MatchEntryView: View {
             }
         }
         .onChange(of: draft) { isEdited = true }
+
     }
 
     // MARK: - More details
@@ -311,6 +319,21 @@ struct MatchEntryView: View {
     return NavigationStack {
         MatchEntryView(sport: .padel, me: SampleData.player("Alex Morgan", in: container),
                        friend: SampleData.player("Max Keller", in: container),
+                       isEdited: .constant(true), initialDraft: draft, onBack: {}, onSave: { _ in })
+    }
+    .modelContainer(container)
+}
+
+#Preview("Go-Kart") {
+    let container = SampleData.container()
+    let me = SampleData.player("Alex Morgan", in: container)
+    let max = SampleData.player("Max Keller", in: container)
+    var draft = MatchDraft(sport: .goKart)
+    draft.racers = [RaceEntry(player: max, lapText: "1:01.870"), RaceEntry(player: me, lapText: "1:02.345"),
+                    RaceEntry(player: SampleData.player("Tom Berger", in: container)),
+                    RaceEntry(player: SampleData.player("Lukas Huber", in: container), dnf: true)]
+    return NavigationStack {
+        MatchEntryView(sport: .goKart, me: me, friend: max,
                        isEdited: .constant(true), initialDraft: draft, onBack: {}, onSave: { _ in })
     }
     .modelContainer(container)

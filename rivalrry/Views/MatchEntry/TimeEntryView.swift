@@ -6,6 +6,8 @@ struct TimeEntryView: View {
     let friendName: String
     /// "You", or the team name in `Team` mode.
     var myName = "You"
+    /// Players that can join as extra runners. With 3+ runners the run becomes a `Race`.
+    var available: [Player] = []
     @State private var isCustomDistance = false
 
     var body: some View {
@@ -34,6 +36,20 @@ struct TimeEntryView: View {
 
             runner(myName, time: $draft.timeTextA, dnf: $draft.dnfA)
             runner(friendName, time: $draft.timeTextB, dnf: $draft.dnfB)
+
+            // 3+ runners = race; places come from the times (plan.md §2.2).
+            ForEach($draft.extraRunners) { $extra in
+                runner(extra.player.shortName, time: $extra.timeText, dnf: $extra.dnf) {
+                    withAnimation(.spring(duration: 0.3)) {
+                        draft.extraRunners.removeAll { $0.id == extra.id }
+                    }
+                }
+            }
+            if 2 + draft.extraRunners.count < 12 {
+                AddPlayerMenu(title: "Add Runner", available: available) { player in
+                    withAnimation(.spring(duration: 0.3)) { draft.extraRunners.append(RaceEntry(player: player)) }
+                }
+            }
         }
         .onAppear {
             // Editing a run with e.g. 1500 m: show it as "Custom", not as an empty menu.
@@ -54,11 +70,24 @@ struct TimeEntryView: View {
         )
     }
 
-    private func runner(_ name: String, time: Binding<String>, dnf: Binding<Bool>) -> some View {
+    private func runner(_ name: String, time: Binding<String>, dnf: Binding<Bool>,
+                        onRemove: (() -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text(name)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.rvTextPrimary)
+            HStack {
+                Text(name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.rvTextPrimary)
+                Spacer()
+                if let onRemove {
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.rvTextSecondary)
+                            .frame(width: 44, height: 32)
+                    }
+                    .accessibilityLabel("Remove \(name)")
+                }
+            }
             HStack(spacing: Spacing.m) {
                 TextField("0:00.00", text: time)
                     .keyboardType(.numbersAndPunctuation)

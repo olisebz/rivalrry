@@ -12,7 +12,7 @@ struct MatchDraftTests {
         #expect(MatchDraft(sport: .penaltyShootout).penaltyShotsPerSide == 5)
         #expect(MatchDraft(sport: .boxing).fightRounds == 3)
         #expect(SportType.phase1Sports.contains(.running))
-        #expect(!SportType.phase1Sports.contains(.goKart))
+        #expect(SportType.phase1Sports.contains(.goKart))   // races since Phase 2
         #expect(!SportType.phase1Sports.contains(.custom))
     }
 

@@ -17,10 +17,11 @@ struct Duel {
 extension Match {
     /// All duels of `player` in this match (plan.md §2.3).
     /// 1v1 and Team: one duel against every player on the other side. Partners are no duel.
-    /// Races follow in Phase 2.
+    /// Race: one duel against every other participant, by finishing place.
     func duels(for player: Player) -> [Duel] {
-        guard countsTowardRecord, mode != .race,
-              let mySide = side(of: player),
+        guard countsTowardRecord else { return [] }
+        if mode == .race { return isValidRace ? raceDuels(for: player) : [] }
+        guard let mySide = side(of: player),
               let result else { return [] }
 
         let outcome: DuelOutcome

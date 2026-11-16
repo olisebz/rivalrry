@@ -111,7 +111,12 @@ struct MatchDetailView: View {
     // MARK: - Scoreboard
 
     /// Both players, the result in the middle, winner marked in green.
+    @ViewBuilder
     private var scoreboard: some View {
+        if match.mode == .race { raceBoard } else { duelBoard }
+    }
+
+    private var duelBoard: some View {
         let winner: Side? = if case .win(let side) = match.result?.outcome { side } else { nil }
         let isDraw = match.result?.outcome == .draw
 
@@ -139,6 +144,55 @@ struct MatchDetailView: View {
         .padding(Spacing.m)
         .frame(maxWidth: .infinity)
         .background(Color.rvSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+
+    /// Race result: your place, then everyone in finishing order (plan.md §4 S3).
+    private var raceBoard: some View {
+        VStack(spacing: Spacing.m) {
+            Text(match.scoreText(for: me))
+                .font(.rvScoreLarge)
+                .foregroundStyle(match.outcome(for: me) == .win ? Color.rvAccent : Color.rvTextPrimary)
+
+            VStack(spacing: 0) {
+                ForEach(Array(match.raceOrder.enumerated()), id: \.offset) { index, participant in
+                    raceRow(participant)
+                    if index < match.raceOrder.count - 1 {
+                        Rectangle().fill(Color.rvSeparator).frame(height: 0.5)
+                    }
+                }
+            }
+        }
+        .padding(Spacing.m)
+        .frame(maxWidth: .infinity)
+        .background(Color.rvSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+
+    private func raceRow(_ participant: MatchParticipant) -> some View {
+        let place = match.racePlace(of: participant)
+        let player = participant.player
+        let name = player.map { $0.isMe ? "You" : $0.shortName } ?? "Deleted Player"
+        // Running: the time; Go-Kart: the fastest lap, if entered.
+        let detail: String? = match.scoringType == .time
+            ? TimeText.text(for: participant)
+            : participant.fastestLapMs.map { "Best lap \(TimeText.lap(milliseconds: $0))" }
+
+        return HStack(spacing: Spacing.m) {
+            Text(place.map { "\($0)" } ?? "DNF")
+                .font(.headline.monospacedDigit())
+                .foregroundStyle(place == nil ? Color.rvTextTertiary : Color.rvTextPrimary)
+                .frame(width: 36, alignment: .leading)
+            AvatarView(name: player?.name ?? "?", colorHex: player?.colorHex ?? "6E6E73", photo: player?.photo, size: 32)
+            Text(name)
+                .font(.body.weight(place == 1 ? .semibold : .regular))
+                .foregroundStyle(place == 1 ? Color.rvAccent : Color.rvTextPrimary)
+            Spacer()
+            if let detail, participant.dnf == false {
+                Text(detail)
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Color.rvTextSecondary)
+            }
+        }
+        .padding(.vertical, Spacing.s)
     }
 
     private func player(_ participant: MatchParticipant?, isWinner: Bool) -> some View {
@@ -195,12 +249,16 @@ struct MatchDetailView: View {
 
     @ViewBuilder
     private var details: some View {
+        if match.mode == .race {
+            EmptyView()
+        } else {
         switch match.scoringType {
         case .sets: setsDetails
         case .penalties: penaltyDetails
         case .fight: fightDetails
         case .time: timeDetails
         case .points, .placement, .winLoss: EmptyView()
+        }
         }
     }
 
@@ -366,6 +424,21 @@ struct MatchDetailView: View {
         .first { $0.sportType == .penaltyShootout }!
     return NavigationStack {
         MatchDetailView(match: match, me: me)
+    }
+    .modelContainer(container)
+}
+
+#Preview("Go-Kart race") {
+    let container = SampleData.container()
+    let me = SampleData.player("Alex Morgan", in: container)
+    let max = SampleData.player("Max Keller", in: container)
+    var draft = MatchDraft(sport: .goKart)
+    draft.racers = [RaceEntry(player: max, lapText: "1:01.870"), RaceEntry(player: me, lapText: "1:02.345"),
+                    RaceEntry(player: SampleData.player("Tom Berger", in: container)),
+                    RaceEntry(player: SampleData.player("Lukas Huber", in: container), dnf: true)]
+    let race = draft.insertMatch(me: me, friend: max, into: container.mainContext)
+    return NavigationStack {
+        MatchDetailView(match: race, me: me, friend: max)
     }
     .modelContainer(container)
 }

@@ -28,8 +28,49 @@ enum SportComparison {
         case .points: rows += pointRows(sport, matches, me, draws: record.draws)
         case .penalties: rows += penaltyRows(matches, me)
         case .fight: rows += fightRows(matches, me, draws: record.draws)
-        case .time: rows += timeRows(matches, me, draws: record.draws)
-        case .placement, .winLoss: break
+        case .time:
+            rows += timeRows(matches, me, draws: record.draws)
+            if let friend = duels.first?.opponent, matches.contains(where: { $0.mode == .race }) {
+                rows += raceRows(matches.filter { $0.mode == .race }, me, friend, laps: false)
+            }
+        case .placement:
+            if let friend = duels.first?.opponent { rows += raceRows(matches, me, friend, laps: true) }
+        case .winLoss: break
+        }
+        return rows
+    }
+
+    // MARK: - Races
+
+    /// "Avg. place" (lower is better), "Podiums" (top 3), "Best lap" (Go-Kart, lower is better).
+    private static func raceRows(_ races: [Match], _ me: Player, _ friend: Player, laps: Bool) -> [ComparisonRow] {
+        var placesMine: [Int] = [], placesTheirs: [Int] = []
+        var lapMine: Int?, lapTheirs: Int?
+        for race in races {
+            if let place = race.racePlace(of: me) { placesMine.append(place) }
+            if let place = race.racePlace(of: friend) { placesTheirs.append(place) }
+            for participant in race.participants {
+                guard let lap = participant.fastestLapMs else { continue }
+                if participant.player?.id == me.id { lapMine = min(lapMine ?? .max, lap) }
+                if participant.player?.id == friend.id { lapTheirs = min(lapTheirs ?? .max, lap) }
+            }
+        }
+
+        func average(_ places: [Int]) -> Double? {
+            places.isEmpty ? nil : Double(places.reduce(0, +)) / Double(places.count)
+        }
+        let avgMine = average(placesMine), avgTheirs = average(placesTheirs)
+        var rows = [
+            ComparisonRow(title: "Avg. place", mine: avgMine.map(oneDecimal) ?? "–", theirs: avgTheirs.map(oneDecimal) ?? "–",
+                          // Lower is better; no place at all loses.
+                          leader: leader(-(avgMine ?? 99), -(avgTheirs ?? 99))),
+            compare("Podiums", placesMine.filter { $0 <= 3 }.count, placesTheirs.filter { $0 <= 3 }.count),
+        ]
+        if laps {
+            rows.append(ComparisonRow(title: "Best lap",
+                                      mine: lapMine.map { TimeText.lap(milliseconds: $0) } ?? "–",
+                                      theirs: lapTheirs.map { TimeText.lap(milliseconds: $0) } ?? "–",
+                                      leader: leader(-Double(lapMine ?? .max), -Double(lapTheirs ?? .max))))
         }
         return rows
     }

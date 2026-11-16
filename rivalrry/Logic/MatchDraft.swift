@@ -13,6 +13,12 @@ struct MatchDraft: Equatable {
     /// Editing a saved team match keeps its teams (only the result can change).
     var teamsLocked = false
 
+    // races (Phase 2)
+    /// Go-Kart: everyone incl. you and the friend, in finishing order.
+    var racers: [RaceEntry] = []
+    /// Running: runners beyond you and the friend. With any of them, the run becomes a `Race`.
+    var extraRunners: [RaceEntry] = []
+
     // sets
     var bestOf: Int
     var sets: [SetEntry] = [SetEntry(scoreA: 0, scoreB: 0)]
@@ -58,6 +64,11 @@ struct MatchDraft: Equatable {
 
     func validate() -> Result<MatchResult, ResultIssue> {
         if mode == .team, let issue = teamIssue { return .failure(issue) }
+        if isRace {
+            // Races have no sides; the result is your place (see `raceText`).
+            if let issue = raceIssue { return .failure(issue) }
+            return .success(MatchResult(outcome: .draw))
+        }
         switch sport.scoringType {
         case .sets:
             return ResultRules.validateSets(effectiveSets, bestOf: bestOf, sport: sport,
@@ -82,6 +93,7 @@ struct MatchDraft: Equatable {
     /// Live preview: "You win 2–1", "Max wins 3–2", "Draw" (plan.md §4 S2b).
     /// In `Team` mode: "You win 2–1" / "Max & Lukas win 2–1".
     func previewText(friendName: String) -> String? {
+        if isRace { return raceIssue == nil ? raceText : nil }
         guard let result = try? validate().get() else { return nil }
         switch result.outcome {
         case .draw:
@@ -126,11 +138,96 @@ struct MatchDraft: Equatable {
         mode == .team ? (teamAName, teamBName(friendName: friendName)) : ("You", friendName)
     }
 
-    /// Players that can still join a team: not you, not the friend, not already picked, not archived.
+    /// Players that can still join a team or race: not you, not the friend, not already picked, not archived.
     func availablePlayers(from players: [Player], friend: Player) -> [Player] {
-        let taken = Set(partners.map(\.id) + opponents.map(\.id) + [friend.id])
+        let taken = Set(partners.map(\.id) + opponents.map(\.id) + [friend.id]
+                        + racers.map(\.player.id) + extraRunners.map(\.player.id))
         return players.filter { !$0.isMe && !$0.isArchived && !taken.contains($0.id) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    // MARK: - Races
+
+    /// Go-Kart is always a race; Running becomes one with a third runner (plan.md §2.2).
+    var isRace: Bool {
+        sport.scoringType == .placement || (sport.scoringType == .time && !extraRunners.isEmpty)
+    }
+
+    /// Go-Kart starts with you and the friend.
+    mutating func setUpRace(me: Player, friend: Player) {
+        if sport.scoringType == .placement, racers.isEmpty {
+            racers = [RaceEntry(player: me), RaceEntry(player: friend)]
+        }
+    }
+
+    /// DNF racers always finish last, in the order they were marked.
+    mutating func sortDNFLast() {
+        racers = racers.filter { !$0.dnf } + racers.filter(\.dnf)
+    }
+
+    var raceIssue: ResultIssue? {
+        switch sport.scoringType {
+        case .placement:
+            if !(2...12).contains(racers.count) { return .raceSize }
+            if racers.contains(where: { !$0.lapText.isEmpty && TimeText.milliseconds(from: $0.lapText) == nil }) {
+                return .invalidLapTime
+            }
+            return nil
+        case .time:
+            if 2 + extraRunners.count > 12 { return .raceSize }
+            guard let distanceMeters, distanceMeters > 0 else { return .invalidDistance }
+            let mineOK = dnfA || (TimeText.milliseconds(from: timeTextA) ?? 0) > 0
+            let theirsOK = dnfB || (TimeText.milliseconds(from: timeTextB) ?? 0) > 0
+            let extrasOK = extraRunners.allSatisfy { $0.dnf || (TimeText.milliseconds(from: $0.timeText) ?? 0) > 0 }
+            return mineOK && theirsOK && extrasOK ? nil : .missingTime
+        default:
+            return nil
+        }
+    }
+
+    /// Your place in the race, `nil` for DNF.
+    var myRacePlace: Int? {
+        switch sport.scoringType {
+        case .placement:
+            guard let mine = racers.firstIndex(where: \.player.isMe), !racers[mine].dnf else { return nil }
+            return racers[..<mine].filter { !$0.dnf }.count + 1
+        case .time:
+            guard !dnfA, let mine = TimeText.milliseconds(from: timeTextA) else { return nil }
+            let others = [dnfB ? nil : TimeText.milliseconds(from: timeTextB)]
+                + extraRunners.map { $0.dnf ? nil : TimeText.milliseconds(from: $0.timeText) }
+            return 1 + others.compactMap { $0 }.filter { $0 < mine }.count
+        default:
+            return nil
+        }
+    }
+
+    var raceSize: Int { sport.scoringType == .placement ? racers.count : 2 + extraRunners.count }
+
+    /// Live preview for races: "You finish 2nd of 4", "You didn't finish".
+    var raceText: String {
+        guard let place = myRacePlace else { return "You didn't finish" }
+        return "You finish \(Ordinal.text(place)) of \(raceSize)"
+    }
+
+    /// Creates the race participants: no sides, places from the order (Go-Kart) or the times (Running).
+    private func raceParticipants(me: Player, friend: Player) -> [MatchParticipant] {
+        switch sport.scoringType {
+        case .placement:
+            var place = 0
+            return racers.map { racer in
+                if !racer.dnf { place += 1 }
+                return MatchParticipant(player: racer.player, place: racer.dnf ? nil : place,
+                                        fastestLapMs: racer.lapText.isEmpty ? nil : TimeText.milliseconds(from: racer.lapText),
+                                        dnf: racer.dnf)
+            }
+        default:
+            let runners = [RaceEntry(player: me, timeText: timeTextA, dnf: dnfA),
+                           RaceEntry(player: friend, timeText: timeTextB, dnf: dnfB)] + extraRunners
+            return runners.map {
+                MatchParticipant(player: $0.player, timeMs: $0.dnf ? nil : TimeText.milliseconds(from: $0.timeText),
+                                 dnf: $0.dnf)
+            }
+        }
     }
 
     // MARK: - Sets
@@ -226,8 +323,14 @@ struct MatchDraft: Equatable {
     /// Creates and inserts the match. Phase 1–2: status `Local`, counts immediately.
     @discardableResult
     func insertMatch(me: Player, friend: Player, into context: ModelContext) -> Match {
-        let match = Match(sportType: sport, mode: mode, date: date, status: .local, createdBy: me)
+        let match = Match(sportType: sport, mode: isRace ? .race : mode, date: date, status: .local, createdBy: me)
         context.insert(match)
+        if isRace {
+            match.participants = raceParticipants(me: me, friend: friend)
+            match.distanceMeters = sport.scoringType == .time ? distanceMeters : nil
+            match.note = note.isEmpty ? nil : String(note.prefix(Self.noteLimit))
+            return match
+        }
         match.participants = [MatchParticipant(player: me, side: .a), MatchParticipant(player: friend, side: .b)]
         if mode == .team {
             match.participants += partners.map { MatchParticipant(player: $0, side: .a) }
@@ -374,8 +477,25 @@ extension TimeText {
         return hours * 3_600_000 + minutes * 60_000 + Int((seconds * 1000).rounded())
     }
 
+    /// Lap time with thousandths, as entered: "1:01.870" (plan.md §2.2: mm:ss.SSS).
+    static func lap(milliseconds ms: Int) -> String {
+        let minutes = ms / 60_000, seconds = (ms / 1000) % 60, thousandths = ms % 1000
+        return String(format: "%d:%02d.%03d", minutes, seconds, thousandths)
+    }
+
     /// "60 m", "1 km", "10 km", "1500 m".
     static func distance(_ meters: Int) -> String {
         meters >= 1000 && meters.isMultiple(of: 1000) ? "\(meters / 1000) km" : "\(meters) m"
     }
+}
+
+/// One racer while entering a race (Go-Kart or Running with 3+ runners).
+struct RaceEntry: Equatable, Identifiable {
+    let player: Player
+    var timeText = ""
+    /// Go-Kart: optional fastest lap, m:ss.SSS.
+    var lapText = ""
+    var dnf = false
+
+    var id: UUID { player.id }
 }
