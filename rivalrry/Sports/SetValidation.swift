@@ -24,7 +24,7 @@ extension ResultRules {
 
     /// Checks a sets result (plan.md §2.2).
     /// - Parameter retiredSide: Side that gave up ("Match not finished"). The last set may then be unfinished.
-    static func validateSets(_ sets: [SetEntry], bestOf: Int, sport: SportType,
+    static func validateSets(_ sets: [SetEntry], bestOf: Int, sport: Sport,
                              retiredSide: Side? = nil) -> Result<MatchResult, ResultIssue> {
         guard let rules = sport.setRules, sport.bestOfOptions.contains(bestOf) else {
             return .failure(.invalidFormat)

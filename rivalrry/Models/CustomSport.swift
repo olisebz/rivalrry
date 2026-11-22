@@ -28,3 +28,39 @@ final class CustomSport {
         self.winBy = winBy
     }
 }
+
+extension CustomSport {
+    /// Scoring types you can pick (plan.md §2.2 "Custom sport").
+    static let scoringTypes: [ScoringType] = [.winLoss, .points, .sets, .placement, .time]
+    /// Placement and Time are races, so only these can be played in teams.
+    static let teamScoringTypes: [ScoringType] = [.winLoss, .points, .sets]
+    static let drawScoringTypes: [ScoringType] = [.winLoss, .points]
+
+    static let defaultPointsPerSet = 11
+    static let defaultWinBy = 2
+    static let pointsPerSetRange = 1...99
+    static let winByRange = 1...5
+
+    /// About 20 symbols to choose from (design.md §5).
+    static let symbols = [
+        "trophy", "figure.golf", "figure.bowling", "figure.climbing", "figure.volleyball",
+        "figure.handball", "figure.hockey", "figure.skiing.downhill", "figure.pool.swim", "figure.outdoor.cycle",
+        "figure.archery", "figure.fencing", "figure.skating", "figure.surfing", "figure.disc.sports",
+        "figure.cricket", "figure.rugby", "target", "gamecontroller", "dice",
+    ]
+}
+
+extension ScoringType {
+    /// Names in the custom sport form (plan.md §2.2).
+    var customTitle: String {
+        switch self {
+        case .winLoss: "Win / Loss"
+        case .points: "Points"
+        case .sets: "Sets"
+        case .placement: "Placement"
+        case .time: "Time"
+        case .penalties: "Penalties"
+        case .fight: "Fight"
+        }
+    }
+}

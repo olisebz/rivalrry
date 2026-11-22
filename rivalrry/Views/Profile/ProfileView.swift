@@ -5,14 +5,18 @@ import SwiftData
 struct ProfileView: View {
     @Query private var players: [Player]
     @Query private var matches: [Match]
+    @Query(sort: \CustomSport.name) private var customSports: [CustomSport]
     @Environment(\.modelContext) private var context
 
     @AppStorage(SportSettings.hiddenKey) private var hiddenRaw = ""
+    @AppStorage(SportSettings.hiddenCustomKey) private var hiddenCustomRaw = ""
     @AppStorage(SportSettings.onboardedKey) private var isOnboarded = false
 
     @State private var isEditingProfile = false
     @State private var isConfirmingReset = false
     @State private var isConfirmingResetAgain = false
+    @State private var isCreatingSport = false
+    @State private var editedSport: CustomSport?
 
     private var me: Player? { players.first(where: \.isMe) }
 
@@ -34,6 +38,8 @@ struct ProfileView: View {
             .sheet(isPresented: $isEditingProfile) {
                 if let me { FriendFormView(friend: me) }
             }
+            .sheet(isPresented: $isCreatingSport) { CustomSportFormView() }
+            .sheet(item: $editedSport) { CustomSportFormView(sport: $0) }
             // "Reset All Data" asks twice (plan.md §4 S9).
             .confirmationDialog("Reset All Data?", isPresented: $isConfirmingReset, titleVisibility: .visible) {
                 Button("Reset All Data", role: .destructive) { isConfirmingResetAgain = true }
@@ -85,12 +91,42 @@ struct ProfileView: View {
 
             VStack(spacing: 0) {
                 ForEach(SportType.phase1Sports) { sport in
-                    SportSettingRow(sport: sport, isShown: shownBinding(sport))
+                    SportSettingRow(sport: Sport(sport), isShown: shownBinding(sport))
                     Rectangle().fill(Color.rvSeparator).frame(height: 0.5)
                         .padding(.leading, 28 + Spacing.m)
                 }
+                // Custom sports (Phase 2): tap the name to edit or delete.
+                ForEach(customSports) { custom in
+                    SportSettingRow(sport: Sport(custom), isShown: shownBinding(custom)) {
+                        editedSport = custom
+                    }
+                    Rectangle().fill(Color.rvSeparator).frame(height: 0.5)
+                        .padding(.leading, 28 + Spacing.m)
+                }
+                Button {
+                    isCreatingSport = true
+                } label: {
+                    HStack(spacing: Spacing.m) {
+                        Image(systemName: "plus")
+                            .frame(width: 28)
+                        Text("New Sport")
+                        Spacer()
+                    }
+                    .font(.body)
+                    .foregroundStyle(Color.rvTextPrimary)
+                    .padding(.vertical, Spacing.s + Spacing.xs)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
+    }
+
+    /// Visible sports in "Add Match", built-in and custom.
+    private var visibleCount: Int {
+        let hiddenCustom = SportSettings.decodeIDs(hiddenCustomRaw)
+        return SportType.phase1Sports.count - SportSettings.decode(hiddenRaw).count
+            + customSports.filter { !hiddenCustom.contains($0.id) }.count
     }
 
     /// Hiding the last visible sport isn't possible: "Add Match" needs at least one.
@@ -101,10 +137,25 @@ struct ProfileView: View {
                 var hidden = SportSettings.decode(hiddenRaw)
                 if shown {
                     hidden.removeAll { $0 == sport }
-                } else if hidden.count < SportType.phase1Sports.count - 1 {
+                } else if visibleCount > 1 {
                     hidden.append(sport)
                 }
                 hiddenRaw = SportSettings.encode(hidden)
+            }
+        )
+    }
+
+    private func shownBinding(_ sport: CustomSport) -> Binding<Bool> {
+        Binding(
+            get: { !SportSettings.decodeIDs(hiddenCustomRaw).contains(sport.id) },
+            set: { shown in
+                var hidden = SportSettings.decodeIDs(hiddenCustomRaw)
+                if shown {
+                    hidden.remove(sport.id)
+                } else if visibleCount > 1 {
+                    hidden.insert(sport.id)
+                }
+                hiddenCustomRaw = SportSettings.encodeIDs(hidden)
             }
         )
     }
@@ -128,26 +179,40 @@ struct ProfileView: View {
 
 /// One sport in "Sports": show/hide and, for set sports, the default format.
 private struct SportSettingRow: View {
-    let sport: SportType
+    let sport: Sport
     @Binding var isShown: Bool
+    /// Custom sports: tapping the name opens "Edit Sport".
+    var onEdit: (() -> Void)? = nil
     @AppStorage private var bestOf: Int
 
-    init(sport: SportType, isShown: Binding<Bool>) {
+    init(sport: Sport, isShown: Binding<Bool>, onEdit: (() -> Void)? = nil) {
         self.sport = sport
         _isShown = isShown
-        _bestOf = AppStorage(wrappedValue: sport.defaultBestOf ?? 0, SportSettings.formatKey(sport))
+        self.onEdit = onEdit
+        // Custom sports have no S9 format setting; their key is never read.
+        _bestOf = AppStorage(wrappedValue: sport.defaultBestOf ?? 0,
+                             sport.builtIn.map(SportSettings.formatKey) ?? "sports.bestOf.\(sport.id)")
     }
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: sport.symbolName)
-                .foregroundStyle(Color.rvTextPrimary)
-                .frame(width: 28)
-            Text(sport.displayName)
-                .font(.body)
-                .foregroundStyle(isShown ? Color.rvTextPrimary : Color.rvTextTertiary)
-            Spacer()
-            if sport.bestOfOptions.count > 1, isShown {
+            if let onEdit {
+                Button(action: onEdit) {
+                    HStack(spacing: Spacing.m) {
+                        symbolAndName
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.rvTextTertiary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } else {
+                symbolAndName
+                Spacer()
+            }
+            if !sport.isCustom, sport.bestOfOptions.count > 1, isShown {
                 Menu {
                     Picker("Format", selection: $bestOf) {
                         ForEach(sport.bestOfOptions, id: \.self) { Text("Best of \($0)").tag($0) }
@@ -164,6 +229,17 @@ private struct SportSettingRow: View {
                 .tint(Color.rvTextSecondary)
         }
         .padding(.vertical, Spacing.s)
+    }
+
+    private var symbolAndName: some View {
+        HStack(spacing: Spacing.m) {
+            Image(systemName: sport.symbolName)
+                .foregroundStyle(Color.rvTextPrimary)
+                .frame(width: 28)
+            Text(sport.displayName)
+                .font(.body)
+                .foregroundStyle(isShown ? Color.rvTextPrimary : Color.rvTextTertiary)
+        }
     }
 }
 

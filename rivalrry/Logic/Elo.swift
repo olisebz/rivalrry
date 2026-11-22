@@ -17,7 +17,7 @@ enum EloGroup: Hashable {
 /// One rating: a player in a sport and mode group.
 struct EloKey: Hashable {
     let playerID: UUID
-    let sport: SportType
+    let sport: Sport
     let group: EloGroup
 }
 
@@ -37,17 +37,17 @@ struct EloTable {
     fileprivate(set) var changes: [UUID: [UUID: Double]] = [:]
 
     /// The current rating rounded, `nil` before 3 matches ("Unranked").
-    func rating(of player: Player, sport: SportType, group: EloGroup) -> Int? {
+    func rating(of player: Player, sport: Sport, group: EloGroup) -> Int? {
         let key = EloKey(playerID: player.id, sport: sport, group: group)
         guard matchCounts[key, default: 0] >= Elo.minimumMatches else { return nil }
         return Int(ratings[key, default: Elo.start].rounded())
     }
 
-    func isRanked(_ player: Player, sport: SportType, group: EloGroup) -> Bool {
+    func isRanked(_ player: Player, sport: Sport, group: EloGroup) -> Bool {
         rating(of: player, sport: sport, group: group) != nil
     }
 
-    func history(of player: Player, sport: SportType, group: EloGroup) -> [EloPoint] {
+    func history(of player: Player, sport: Sport, group: EloGroup) -> [EloPoint] {
         history[EloKey(playerID: player.id, sport: sport, group: group)] ?? []
     }
 
@@ -125,7 +125,7 @@ enum Elo {
     private static func apply(_ match: Match, to table: inout EloTable) {
         let group = EloGroup(match.mode)
         func key(_ participant: MatchParticipant) -> EloKey? {
-            participant.player.map { EloKey(playerID: $0.id, sport: match.sportType, group: group) }
+            participant.player.map { EloKey(playerID: $0.id, sport: match.sport, group: group) }
         }
         // Deleted players have no rating anymore and count as a new player.
         func rating(_ participant: MatchParticipant) -> Double {

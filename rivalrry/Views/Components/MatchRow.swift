@@ -7,13 +7,13 @@ struct MatchRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-            Image(systemName: match.customSport?.symbolName ?? match.sportType.symbolName)
+            Image(systemName: match.sport.symbolName)
                 .font(.body)
                 .foregroundStyle(Color.rvTextPrimary)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(match.customSport?.name ?? match.sportType.displayName)
+                Text(match.sport.displayName)
                     .font(.body)
                     .foregroundStyle(Color.rvTextPrimary)
                 Text(match.detailText())

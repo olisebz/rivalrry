@@ -3,7 +3,7 @@ import Foundation
 extension ResultRules {
 
     /// Checks a points result, e.g. Football or Basketball (plan.md §2.2).
-    static func validatePoints(scoreA: Int, scoreB: Int, sport: SportType) -> Result<MatchResult, ResultIssue> {
+    static func validatePoints(scoreA: Int, scoreB: Int, sport: Sport) -> Result<MatchResult, ResultIssue> {
         guard scoreA >= 0, scoreB >= 0 else { return .failure(.negativeScore) }
         if scoreA == scoreB {
             guard sport.allowsDraw else { return .failure(.drawNotAllowed(sport)) }

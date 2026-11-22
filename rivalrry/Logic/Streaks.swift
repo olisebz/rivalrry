@@ -62,7 +62,7 @@ extension Rivalry {
     // MARK: - Highlights
 
     /// Scoring types with a score margin: sets, points, penalties.
-    static func hasMargin(_ sport: SportType) -> Bool {
+    static func hasMargin(_ sport: Sport) -> Bool {
         [.sets, .points, .penalties].contains(sport.scoringType)
     }
 
@@ -73,7 +73,7 @@ extension Rivalry {
             .filter { $0.outcome == .win && seen.insert($0.match.id).inserted }
             .compactMap { duel in
                 let match = duel.match
-                guard hasMargin(match.sportType), let mySide = match.side(of: me),
+                guard hasMargin(match.sport), let mySide = match.side(of: me),
                       let result = match.result, let a = result.scoreA, let b = result.scoreB else { return nil }
                 let primary = mySide == .a ? a - b : b - a
                 var secondary = 0

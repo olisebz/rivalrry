@@ -5,7 +5,7 @@ import Testing
 /// S2c "Head to Head" per sport (decision 8).
 struct SportComparisonTests {
 
-    private func rows(_ f: Fixture, _ sport: SportType, filter: DuelFilter = DuelFilter()) -> [String: ComparisonRow] {
+    private func rows(_ f: Fixture, _ sport: Sport, filter: DuelFilter = DuelFilter()) -> [String: ComparisonRow] {
         let duels = Rivalry.duels(of: f.me, against: f.max, in: f.matches, filter: filter)
         let rows = SportComparison.rows(for: sport, duels: duels, me: f.me)
         return Dictionary(uniqueKeysWithValues: rows.map { ($0.title, $0) })

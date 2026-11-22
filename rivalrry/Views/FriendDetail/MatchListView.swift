@@ -6,7 +6,7 @@ struct MatchListView: View {
     let me: Player
     let friend: Player
     @Query private var allMatches: [Match]
-    @State private var sport: SportType?
+    @State private var sport: Sport?
 
     var body: some View {
         let sports = Rivalry.sportsPlayed(of: me, with: friend, in: allMatches)
@@ -15,8 +15,8 @@ struct MatchListView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 if sports.count > 1 {
-                    FilterChips(options: [(value: SportType?.none, title: "All")]
-                                    + sports.map { (value: SportType?.some($0), title: $0.displayName) },
+                    FilterChips(options: [(value: Sport?.none, title: "All")]
+                                    + sports.map { (value: Sport?.some($0), title: $0.displayName) },
                                 selection: $sport)
                 }
                 MatchRows(matches: matches, me: me)

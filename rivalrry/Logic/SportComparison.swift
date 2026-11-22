@@ -13,14 +13,14 @@ struct ComparisonRow: Equatable {
 /// Built from the counting duels, so the S2c filters (period, mode) apply.
 enum SportComparison {
 
-    static func rows(for sport: SportType, duels: [Duel], me: Player) -> [ComparisonRow] {
+    static func rows(for sport: Sport, duels: [Duel], me: Player) -> [ComparisonRow] {
         // Team matches have one duel per opponent; count each match once.
         var seen = Set<UUID>()
-        let matches = duels.map(\.match).filter { $0.sportType == sport && seen.insert($0.id).inserted }
+        let matches = duels.map(\.match).filter { $0.sport == sport && seen.insert($0.id).inserted }
         guard !matches.isEmpty else { return [] }
 
         var record = Record()
-        for duel in duels where duel.match.sportType == sport { record.add(duel.outcome) }
+        for duel in duels where duel.match.sport == sport { record.add(duel.outcome) }
         var rows = [compare("Wins", record.wins, record.losses)]
 
         switch sport.scoringType {
@@ -34,8 +34,9 @@ enum SportComparison {
                 rows += raceRows(matches.filter { $0.mode == .race }, me, friend, laps: false)
             }
         case .placement:
-            if let friend = duels.first?.opponent { rows += raceRows(matches, me, friend, laps: true) }
-        case .winLoss: break
+            if let friend = duels.first?.opponent { rows += raceRows(matches, me, friend, laps: sport.usesLaps) }
+        case .winLoss:
+            if sport.allowsDraw { rows.append(shared("Draws", record.draws)) }
         }
         return rows
     }
@@ -77,7 +78,7 @@ enum SportComparison {
 
     // MARK: - Sets
 
-    private static func setRows(_ sport: SportType, _ matches: [Match], _ me: Player) -> [ComparisonRow] {
+    private static func setRows(_ sport: Sport, _ matches: [Match], _ me: Player) -> [ComparisonRow] {
         guard let rules = sport.setRules else { return [] }
         var setsMine = 0, setsTheirs = 0, setsPlayed = 0
         var pointsMine = 0, pointsTheirs = 0
@@ -116,7 +117,7 @@ enum SportComparison {
 
     // MARK: - Points
 
-    private static func pointRows(_ sport: SportType, _ matches: [Match], _ me: Player, draws: Int) -> [ComparisonRow] {
+    private static func pointRows(_ sport: Sport, _ matches: [Match], _ me: Player, draws: Int) -> [ComparisonRow] {
         var mine = 0, theirs = 0
         var biggestMine: (margin: Int, text: String)?
         var biggestTheirs: (margin: Int, text: String)?
@@ -207,7 +208,9 @@ enum SportComparison {
     private static func timeRows(_ matches: [Match], _ me: Player, draws: Int) -> [ComparisonRow] {
         var bestMine: [Int: Int] = [:], bestTheirs: [Int: Int] = [:]
         for match in matches {
-            guard let distance = match.distanceMeters, let mySide = match.side(of: me) else { continue }
+            // Custom time sports have no distance: one "Best time" for all.
+            guard let mySide = match.side(of: me) else { continue }
+            let distance = match.distanceMeters ?? 0
             if let time = match.participants(on: mySide).first.flatMap({ $0.dnf ? nil : $0.timeMs }) {
                 bestMine[distance] = min(bestMine[distance] ?? .max, time)
             }
@@ -221,7 +224,7 @@ enum SportComparison {
             let mine = bestMine[distance], theirs = bestTheirs[distance]
             // Lower time is better; a missing time loses.
             let leader = leader(Double(theirs ?? .max), Double(mine ?? .max))
-            rows.append(ComparisonRow(title: "Best \(TimeText.distance(distance))",
+            rows.append(ComparisonRow(title: distance > 0 ? "Best \(TimeText.distance(distance))" : "Best time",
                                       mine: mine.map { TimeText.text(milliseconds: $0) } ?? "–",
                                       theirs: theirs.map { TimeText.text(milliseconds: $0) } ?? "–",
                                       leader: leader))

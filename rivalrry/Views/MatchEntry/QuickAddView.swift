@@ -11,18 +11,23 @@ struct QuickAddView: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var matches: [Match]
 
-    @State private var selectedSport: SportType?
+    @State private var selectedSport: Sport?
     @State private var selectedFriend: Player?
-    @State private var path: [SportType] = []
+    @State private var path: [Sport] = []
+    @State private var isCreatingSport = false
+    @Query private var customSports: [CustomSport]
     @State private var isEdited = false
     @State private var isConfirmingDiscard = false
     @State private var didPreselect = false
     @AppStorage(SportSettings.favoritesKey) private var favoritesRaw = ""
     @AppStorage(SportSettings.hiddenKey) private var hiddenRaw = ""
+    @AppStorage(SportSettings.hiddenCustomKey) private var hiddenCustomRaw = ""
 
-    private var sports: [SportType] {
+    private var sports: [Sport] {
         SportSettings.entrySports(favorites: SportSettings.decode(favoritesRaw),
-                                  hidden: SportSettings.decode(hiddenRaw))
+                                  hidden: SportSettings.decode(hiddenRaw),
+                                  custom: customSports,
+                                  hiddenCustom: SportSettings.decodeIDs(hiddenCustomRaw))
     }
 
     var body: some View {
@@ -33,7 +38,8 @@ struct QuickAddView: View {
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(Color.rvTextPrimary)
                         .padding(.horizontal, Spacing.m)
-                    SportGridView(sports: sports, selection: $selectedSport)
+                    SportGridView(sports: sports, selection: $selectedSport,
+                                  onNewSport: { isCreatingSport = true })
 
                     VStack(alignment: .leading, spacing: Spacing.s) {
                         Text("Opponent")
@@ -66,7 +72,10 @@ struct QuickAddView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .navigationDestination(for: SportType.self) { sport in
+            .sheet(isPresented: $isCreatingSport) {
+                CustomSportFormView { selectedSport = Sport($0) }
+            }
+            .navigationDestination(for: Sport.self) { sport in
                 if let friend = selectedFriend {
                     MatchEntryView(sport: sport, me: me, friend: friend, isEdited: $isEdited,
                                    onBack: backToStart,

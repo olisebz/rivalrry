@@ -2,7 +2,7 @@ import Foundation
 
 extension Match {
     /// Scoring type, taking a custom sport into account.
-    var scoringType: ScoringType { customSport?.scoringType ?? sportType.scoringType }
+    var scoringType: ScoringType { sport.scoringType }
 
     /// Unconfirmed matches never count (plan.md §0).
     var countsTowardRecord: Bool { status == .local || status == .confirmed }
@@ -27,13 +27,13 @@ extension Match {
             let entries = orderedSets.map {
                 SetEntry(scoreA: $0.scoreA, scoreB: $0.scoreB, tiebreakA: $0.tiebreakA, tiebreakB: $0.tiebreakB)
             }
-            return try? ResultRules.validateSets(entries, bestOf: bestOf, sport: sportType,
+            return try? ResultRules.validateSets(entries, bestOf: bestOf, sport: sport,
                                                  retiredSide: retiredSide).get()
         case .points:
             // A points match stores its score as a single SetScore (index 0).
             guard let score = orderedSets.first else { return nil }
             return try? ResultRules.validatePoints(scoreA: score.scoreA, scoreB: score.scoreB,
-                                                   sport: sportType).get()
+                                                   sport: sport).get()
         case .penalties:
             if let shotsPerSide = penaltyShotsPerSide {
                 let shots = orderedPenalties.map { PenaltyEntry(side: $0.side, scored: $0.scored) }
@@ -52,8 +52,13 @@ extension Match {
             return try? ResultRules.validateFight(entry).get()
         case .time:
             return timeResult
-        case .placement, .winLoss:
-            // Races and custom sports come in Phase 2.
+        case .winLoss:
+            // Stored as one SetScore: 1–0 or 0–1 for the winner, 0–0 for a draw.
+            guard let score = orderedSets.first else { return nil }
+            let winner: Side? = score.scoreA > score.scoreB ? .a : score.scoreB > score.scoreA ? .b : nil
+            return try? ResultRules.validateWinLoss(winner: winner, sport: sport).get()
+        case .placement:
+            // Races have no sides; see `duels(for:)`.
             return nil
         }
     }
@@ -64,6 +69,6 @@ extension Match {
               let a = participants(on: .a).first,
               let b = participants(on: .b).first else { return nil }
         return try? ResultRules.validateTime(timeA: a.timeMs, dnfA: a.dnf, timeB: b.timeMs, dnfB: b.dnf,
-                                             distanceMeters: distanceMeters).get()
+                                             distanceMeters: distanceMeters, needsDistance: sport.usesDistance).get()
     }
 }

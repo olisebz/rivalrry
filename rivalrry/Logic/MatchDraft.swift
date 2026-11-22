@@ -3,7 +3,7 @@ import SwiftData
 
 /// Everything entered in S2b Add Match before it is saved. Side A is always you, side B the friend.
 struct MatchDraft: Equatable {
-    let sport: SportType
+    let sport: Sport
 
     // mode & participants (Phase 2). In `Team` mode you and the friend are opponents;
     // `partners` play with you (side A), `opponents` with the friend (side B).
@@ -40,6 +40,9 @@ struct MatchDraft: Equatable {
     var fightRounds = ResultRules.defaultFightRounds
     var fightEndRound = 1
 
+    // win / loss (custom sports): `nil` = draw
+    var winner: Side? = .a
+
     // time
     var distanceMeters: Int? = 100
     var timeTextA = ""
@@ -54,10 +57,11 @@ struct MatchDraft: Equatable {
     static let noteLimit = 200
 
     /// - Parameter bestOf: default format, e.g. from S9 settings. Falls back to plan.md §2.2.
-    init(sport: SportType, bestOf: Int? = nil) {
+    init(sport: Sport, bestOf: Int? = nil) {
         self.sport = sport
         let fallback = sport.defaultBestOf ?? 1
         self.bestOf = bestOf.flatMap { sport.bestOfOptions.contains($0) ? $0 : nil } ?? fallback
+        if !sport.usesDistance { distanceMeters = nil }
     }
 
     // MARK: - Validation
@@ -82,8 +86,10 @@ struct MatchDraft: Equatable {
         case .time:
             return ResultRules.validateTime(timeA: TimeText.milliseconds(from: timeTextA), dnfA: dnfA,
                                             timeB: TimeText.milliseconds(from: timeTextB), dnfB: dnfB,
-                                            distanceMeters: distanceMeters)
-        case .placement, .winLoss:
+                                            distanceMeters: distanceMeters, needsDistance: sport.usesDistance)
+        case .winLoss:
+            return ResultRules.validateWinLoss(winner: winner, sport: sport)
+        case .placement:
             return .failure(.invalidFormat)
         }
     }
@@ -175,7 +181,9 @@ struct MatchDraft: Equatable {
             return nil
         case .time:
             if 2 + extraRunners.count > 12 { return .raceSize }
-            guard let distanceMeters, distanceMeters > 0 else { return .invalidDistance }
+            if sport.usesDistance {
+                guard let distanceMeters, distanceMeters > 0 else { return .invalidDistance }
+            }
             let mineOK = dnfA || (TimeText.milliseconds(from: timeTextA) ?? 0) > 0
             let theirsOK = dnfB || (TimeText.milliseconds(from: timeTextB) ?? 0) > 0
             let extrasOK = extraRunners.allSatisfy { $0.dnf || (TimeText.milliseconds(from: $0.timeText) ?? 0) > 0 }
@@ -323,11 +331,12 @@ struct MatchDraft: Equatable {
     /// Creates and inserts the match. Phase 1–2: status `Local`, counts immediately.
     @discardableResult
     func insertMatch(me: Player, friend: Player, into context: ModelContext) -> Match {
-        let match = Match(sportType: sport, mode: isRace ? .race : mode, date: date, status: .local, createdBy: me)
+        let match = Match(sportType: sport.storedType, customSport: sport.custom, mode: isRace ? .race : mode,
+                          date: date, status: .local, createdBy: me)
         context.insert(match)
         if isRace {
             match.participants = raceParticipants(me: me, friend: friend)
-            match.distanceMeters = sport.scoringType == .time ? distanceMeters : nil
+            match.distanceMeters = sport.usesDistance ? distanceMeters : nil
             match.note = note.isEmpty ? nil : String(note.prefix(Self.noteLimit))
             return match
         }
@@ -397,7 +406,9 @@ struct MatchDraft: Equatable {
             mine?.timeMs = dnfA ? nil : TimeText.milliseconds(from: timeTextA)
             theirs?.dnf = dnfB
             theirs?.timeMs = dnfB ? nil : TimeText.milliseconds(from: timeTextB)
-        case .placement, .winLoss:
+        case .winLoss:
+            match.sets = [SetScore(index: 0, scoreA: winner == .a ? 1 : 0, scoreB: winner == .b ? 1 : 0)]
+        case .placement:
             break
         }
     }
@@ -407,7 +418,7 @@ struct MatchDraft: Equatable {
     /// Loads a saved match back into the form (S3 "Edit"). Side A stays side A.
     /// - Parameter friend: the friend whose page the match was opened from (side B).
     init(match: Match, friend: Player? = nil) {
-        self.init(sport: match.sportType)
+        self.init(sport: match.sport)
         date = match.date
         note = match.note ?? ""
         mode = match.mode
@@ -451,7 +462,11 @@ struct MatchDraft: Equatable {
             dnfB = b?.dnf ?? false
             timeTextA = a?.timeMs.map { TimeText.text(milliseconds: $0) } ?? ""
             timeTextB = b?.timeMs.map { TimeText.text(milliseconds: $0) } ?? ""
-        case .placement, .winLoss:
+        case .winLoss:
+            if let score = match.orderedSets.first {
+                winner = score.scoreA > score.scoreB ? .a : score.scoreB > score.scoreA ? .b : nil
+            }
+        case .placement:
             break
         }
     }

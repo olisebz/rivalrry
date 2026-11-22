@@ -33,7 +33,7 @@ extension Rivalry {
 
     static func margins(_ duels: [Duel], me: Player) -> [MarginPoint] {
         uniqueMatches(duels).compactMap { match in
-            guard hasMargin(match.sportType), let mySide = match.side(of: me),
+            guard hasMargin(match.sport), let mySide = match.side(of: me),
                   let outcome = match.outcome(for: me), let result = match.result else { return nil }
             let difference: Int
             if match.scoringType == .sets {

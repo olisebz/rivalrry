@@ -49,7 +49,7 @@ struct MatchDetailView: View {
             .padding(Spacing.m)
         }
         .background(Color.rvBackground)
-        .navigationTitle(match.customSport?.name ?? match.sportType.displayName)
+        .navigationTitle(match.sport.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -75,7 +75,7 @@ struct MatchDetailView: View {
     /// 1v1 and team matches of the supported sports can be edited, if no player was deleted.
     /// In team matches only the result changes, the teams stay as they are.
     private var canEdit: Bool {
-        match.mode != .race && SportType.phase1Sports.contains(match.sportType)
+        match.mode != .race && (match.sport.isCustom || SportType.phase1Sports.contains(match.sportType))
             && !match.participants.isEmpty && match.participants.allSatisfy { $0.player != nil }
     }
 
@@ -83,13 +83,13 @@ struct MatchDetailView: View {
 
     private var heading: some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: match.customSport?.symbolName ?? match.sportType.symbolName)
+            Image(systemName: match.sport.symbolName)
                 .font(.system(size: 28))
                 .foregroundStyle(Color.rvTextPrimary)
                 .frame(width: 44, height: 44)
                 .background(Color.rvSurface, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
-                Text(match.customSport?.name ?? match.sportType.displayName)
+                Text(match.sport.displayName)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(Color.rvTextPrimary)
                 Text(subtitle)
@@ -417,7 +417,7 @@ struct MatchDetailView: View {
     private var editSheet: some View {
         if let friend = sideB?.player {
             NavigationStack {
-                MatchEntryView(sport: match.sportType, me: me, friend: friend, isEdited: $isEdited,
+                MatchEntryView(sport: match.sport, me: me, friend: friend, isEdited: $isEdited,
                                initialDraft: MatchDraft(match: match, friend: friend),
                                onCancel: { isEditing = false }) { draft in
                     guard draft.isValid else { return }

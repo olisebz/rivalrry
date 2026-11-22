@@ -8,7 +8,7 @@ struct QuickAddTests {
 
     @Test func mostRecentSportIsPreselected() throws {
         let f = try Fixture()
-        let all = SportType.phase1Sports
+        let all = Sport.builtInSports
         #expect(QuickAdd.preselectedSport(me: f.me, matches: f.matches, available: all) == nil)
 
         f.add(.badminton, .win, vs: [f.max])

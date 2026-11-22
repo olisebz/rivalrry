@@ -4,11 +4,11 @@ import Foundation
 enum QuickAdd {
 
     /// The sport of your most recent counting match, if it can still be entered.
-    static func preselectedSport(me: Player, matches: [Match], available: [SportType]) -> SportType? {
+    static func preselectedSport(me: Player, matches: [Match], available: [Sport]) -> Sport? {
         matches
-            .filter { $0.countsTowardRecord && $0.includes(me) && available.contains($0.sportType) }
+            .filter { $0.countsTowardRecord && $0.includes(me) && available.contains($0.sport) }
             .max { $0.date < $1.date }?
-            .sportType
+            .sport
     }
 
     /// Active friends, most recent opponents first; friends without matches after them, newest first.

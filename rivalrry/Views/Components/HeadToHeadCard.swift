@@ -3,7 +3,7 @@ import SwiftUI
 /// S2c "Head to Head" for one sport: record, then You | label | friend rows (decision 8).
 /// The better value is green if it's yours, normal text if it's the friend's, grey if tied (decision 5).
 struct HeadToHeadCard: View {
-    let sport: SportType
+    let sport: Sport
     let record: Record
     let rows: [ComparisonRow]
     let friendName: String

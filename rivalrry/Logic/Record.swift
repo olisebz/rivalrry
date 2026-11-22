@@ -49,13 +49,13 @@ enum ModeFilter: CaseIterable {
 }
 
 struct DuelFilter {
-    var sport: SportType?
+    var sport: Sport?
     var mode: ModeFilter = .singles
     /// Only matches on or after this date (S2c filter "Period").
     var since: Date?
 
     func includes(_ match: Match) -> Bool {
-        (sport == nil || match.sportType == sport)
+        (sport == nil || match.sport == sport)
             && mode.includes(match.mode)
             && (since.map { match.date >= $0 } ?? true)
     }
@@ -85,10 +85,10 @@ enum Rivalry {
 
     /// One record per sport played, most matches first ("By Sport").
     static func recordsBySport(of me: Player, against friend: Player, in matches: [Match],
-                               filter: DuelFilter = DuelFilter()) -> [(sport: SportType, record: Record)] {
-        var records: [SportType: Record] = [:]
+                               filter: DuelFilter = DuelFilter()) -> [(sport: Sport, record: Record)] {
+        var records: [Sport: Record] = [:]
         for duel in duels(of: me, against: friend, in: matches, filter: filter) {
-            records[duel.match.sportType, default: Record()].add(duel.outcome)
+            records[duel.match.sport, default: Record()].add(duel.outcome)
         }
         return records
             .map { (sport: $0.key, record: $0.value) }

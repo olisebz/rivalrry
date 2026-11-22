@@ -12,6 +12,8 @@ struct TimeEntryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
+            // Custom time sports have no distance.
+            if draft.sport.usesDistance {
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Text("Distance")
                     .font(.subheadline)
@@ -32,6 +34,7 @@ struct TimeEntryView: View {
                         .background(Color.rvSurface,
                                     in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
+            }
             }
 
             runner(myName, time: $draft.timeTextA, dnf: $draft.dnfA)

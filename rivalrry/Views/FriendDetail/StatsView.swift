@@ -22,7 +22,7 @@ struct StatsView: View {
         _modeRaw = AppStorage(wrappedValue: "singles", "\(key).mode")
     }
 
-    private var sport: SportType? { SportType(rawValue: sportRaw) }
+
     private var period: StatsPeriod { StatsPeriod(rawValue: periodRaw) ?? .all }
     private var mode: ModeFilter {
         switch modeRaw {
@@ -35,7 +35,7 @@ struct StatsView: View {
     var body: some View {
         let sports = Rivalry.sportsPlayed(of: me, with: friend, in: allMatches)
         // A saved sport filter for a sport that's no longer played falls back to "All".
-        let sport = self.sport.flatMap { sports.contains($0) ? $0 : nil }
+        let sport = sports.first { $0.id == sportRaw }
         let filter = DuelFilter(sport: sport, mode: mode, since: period.since())
         let duels = Rivalry.duels(of: me, against: friend, in: allMatches, filter: filter)
         let record = Rivalry.record(of: me, against: friend, in: allMatches, filter: filter)
@@ -120,7 +120,7 @@ struct StatsView: View {
                         Elo.summary(mine: elo.rating(of: me, sport: sport, group: group),
                                     theirs: elo.rating(of: friend, sport: sport, group: group))
                     }) { selected in
-                        withAnimation(.spring(duration: 0.3)) { sportRaw = selected.rawValue }
+                        withAnimation(.spring(duration: 0.3)) { sportRaw = selected.id }
                     }
                     .padding(.horizontal, Spacing.m)
                 }
@@ -135,11 +135,11 @@ struct StatsView: View {
 
     // MARK: - Filters
 
-    private func filters(sports: [SportType]) -> some View {
+    private func filters(sports: [Sport]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             // Also keep the chips while a sport is selected, so "All" is always reachable.
-            if sports.count > 1 || sport != nil {
-                FilterChips(options: [(value: "", title: "All")] + sports.map { (value: $0.rawValue, title: $0.displayName) },
+            if sports.count > 1 || sports.contains(where: { $0.id == sportRaw }) {
+                FilterChips(options: [(value: "", title: "All")] + sports.map { (value: $0.id, title: $0.displayName) },
                             selection: $sportRaw)
             }
 
@@ -173,10 +173,10 @@ struct StatsView: View {
 
 /// "By Sport": one row per sport with record and win share bar. Tapping filters by that sport.
 struct BySportList: View {
-    let records: [(sport: SportType, record: Record)]
+    let records: [(sport: Sport, record: Record)]
     /// "Elo 1240 vs 1180" below the sport name, `nil` to leave it out.
-    var eloText: (SportType) -> String? = { _ in nil }
-    let select: (SportType) -> Void
+    var eloText: (Sport) -> String? = { _ in nil }
+    let select: (Sport) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {

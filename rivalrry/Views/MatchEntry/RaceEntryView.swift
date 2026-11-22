@@ -63,12 +63,15 @@ struct RaceEntryView: View {
                 .foregroundStyle(Color.rvTextPrimary)
                 .lineLimit(1)
             Spacer(minLength: Spacing.xs)
-            TextField("Best lap", text: racer.lapText)
-                .keyboardType(.numbersAndPunctuation)
-                .font(.subheadline.monospacedDigit())
-                .multilineTextAlignment(.trailing)
-                .frame(width: 80)
-                .disabled(racer.wrappedValue.dnf)
+            // Fastest lap only for Go-Kart, not for custom placement sports.
+            if draft.sport.usesLaps {
+                TextField("Best lap", text: racer.lapText)
+                    .keyboardType(.numbersAndPunctuation)
+                    .font(.subheadline.monospacedDigit())
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                    .disabled(racer.wrappedValue.dnf)
+            }
             Toggle("DNF", isOn: Binding(
                 get: { racer.wrappedValue.dnf },
                 set: { value in

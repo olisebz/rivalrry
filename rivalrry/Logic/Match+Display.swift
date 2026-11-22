@@ -42,7 +42,12 @@ extension Match {
             let mine = participants(on: mySide).first
             let theirs = participants(on: mySide.opponent).first
             return "\(TimeText.text(for: mine)) – \(TimeText.text(for: theirs))"
-        case .placement, .winLoss:
+        case .winLoss:
+            switch result.outcome {
+            case .draw: return "Draw"
+            case .win(let side): return side == mySide ? "Win" : "Loss"
+            }
+        case .placement:
             return "–"
         }
     }
@@ -72,7 +77,7 @@ extension Rivalry {
                                filter: DuelFilter = DuelFilter(mode: .team)) -> Record {
         var record = Record()
         for match in matches where match.mode == .team && match.countsTowardRecord
-            && (filter.sport == nil || match.sportType == filter.sport)
+            && (filter.sport == nil || match.sport == filter.sport)
             && (filter.since.map { match.date >= $0 } ?? true) {
             guard let mySide = match.side(of: me), match.side(of: friend) == mySide,
                   let outcome = match.outcome(for: me) else { continue }
@@ -148,17 +153,17 @@ extension Rivalry {
 
     /// All matches you and `friend` played in (any mode and status), newest first.
     static func matches(of me: Player, with friend: Player, in matches: [Match],
-                        sport: SportType? = nil) -> [Match] {
+                        sport: Sport? = nil) -> [Match] {
         matches
-            .filter { $0.includes(me) && $0.includes(friend) && (sport == nil || $0.sportType == sport) }
+            .filter { $0.includes(me) && $0.includes(friend) && (sport == nil || $0.sport == sport) }
             .sorted { $0.date > $1.date }
     }
 
     /// Sports you played with `friend`, most matches first (S2 filter chips).
-    static func sportsPlayed(of me: Player, with friend: Player, in allMatches: [Match]) -> [SportType] {
-        var counts: [SportType: Int] = [:]
+    static func sportsPlayed(of me: Player, with friend: Player, in allMatches: [Match]) -> [Sport] {
+        var counts: [Sport: Int] = [:]
         for match in matches(of: me, with: friend, in: allMatches) {
-            counts[match.sportType, default: 0] += 1
+            counts[match.sport, default: 0] += 1
         }
         return counts.sorted {
             $0.value != $1.value ? $0.value > $1.value : $0.key.displayName < $1.key.displayName

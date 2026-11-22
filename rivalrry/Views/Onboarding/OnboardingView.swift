@@ -106,9 +106,10 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 heading("Favorite sports", subtitle: "Pick at least one. They come first when you add a match.")
                     .padding(.horizontal, Spacing.m)
-                SportGridView(sports: SportType.phase1Sports,
-                              isSelected: { favorites.contains($0) },
-                              toggle: { sport in
+                SportGridView(sports: Sport.builtInSports,
+                              isSelected: { $0.builtIn.map(favorites.contains) ?? false },
+                              toggle: { selected in
+                                  guard let sport = selected.builtIn else { return }
                                   if let index = favorites.firstIndex(of: sport) {
                                       favorites.remove(at: index)
                                   } else {

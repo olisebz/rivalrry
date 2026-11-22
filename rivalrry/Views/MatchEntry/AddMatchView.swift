@@ -11,12 +11,15 @@ struct AddMatchView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedSport: SportType?
-    @State private var path: [SportType] = []
+    @State private var selectedSport: Sport?
+    @State private var path: [Sport] = []
+    @State private var isCreatingSport = false
+    @Query private var customSports: [CustomSport]
     @State private var isEdited = false
     @State private var isConfirmingDiscard = false
     @AppStorage(SportSettings.favoritesKey) private var favoritesRaw = ""
     @AppStorage(SportSettings.hiddenKey) private var hiddenRaw = ""
+    @AppStorage(SportSettings.hiddenCustomKey) private var hiddenCustomRaw = ""
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -25,8 +28,11 @@ struct AddMatchView: View {
                     EntryHeading(title: "Choose a sport", friendName: friend.shortName)
                         .padding(.horizontal, Spacing.m)
                     SportGridView(sports: SportSettings.entrySports(favorites: SportSettings.decode(favoritesRaw),
-                                                                    hidden: SportSettings.decode(hiddenRaw)),
-                                  selection: $selectedSport)
+                                                                    hidden: SportSettings.decode(hiddenRaw),
+                                                                    custom: customSports,
+                                                                    hiddenCustom: SportSettings.decodeIDs(hiddenCustomRaw)),
+                                  selection: $selectedSport,
+                                  onNewSport: { isCreatingSport = true })
                 }
                 .padding(.top, Spacing.s)
             }
@@ -47,7 +53,10 @@ struct AddMatchView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .navigationDestination(for: SportType.self) { sport in
+            .sheet(isPresented: $isCreatingSport) {
+                CustomSportFormView { selectedSport = Sport($0) }
+            }
+            .navigationDestination(for: Sport.self) { sport in
                 MatchEntryView(sport: sport, me: me, friend: friend, isEdited: $isEdited,
                                onBack: backToSports,
                                onSave: save)
@@ -104,7 +113,7 @@ struct EntryHeading: View {
 /// S2b steps 3–4: result for the chosen sport, "More details", live preview and "Save Match".
 /// Also used for S3 "Edit": then it starts with the saved match and shows "Cancel" instead of "‹ Sport".
 struct MatchEntryView: View {
-    let sport: SportType
+    let sport: Sport
     let me: Player?
     let friend: Player
     @Binding var isEdited: Bool
@@ -117,7 +126,7 @@ struct MatchEntryView: View {
     @State private var showsDetails = false
     @Query private var players: [Player]
 
-    init(sport: SportType, me: Player?, friend: Player, isEdited: Binding<Bool>,
+    init(sport: Sport, me: Player?, friend: Player, isEdited: Binding<Bool>,
          initialDraft: MatchDraft? = nil,
          onBack: (() -> Void)? = nil, onCancel: (() -> Void)? = nil,
          onSave: @escaping (MatchDraft) -> Void) {
@@ -157,7 +166,7 @@ struct MatchEntryView: View {
                 case .placement:
                     RaceEntryView(draft: $draft, friend: friend,
                                   available: draft.availablePlayers(from: players, friend: friend))
-                case .winLoss: EmptyView()
+                case .winLoss: WinLossEntryView(draft: $draft, friendName: names.b, myName: names.a)
                 }
 
                 moreDetails

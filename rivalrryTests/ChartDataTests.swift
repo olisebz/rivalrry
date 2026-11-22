@@ -6,7 +6,7 @@ import Testing
 /// Phase 2 step 5: "Score Margin", "Activity" and the Running times chart (plan.md §4 S2c).
 struct ChartDataTests {
 
-    private func duels(_ f: Fixture, _ sport: SportType? = nil) -> [Duel] {
+    private func duels(_ f: Fixture, _ sport: Sport? = nil) -> [Duel] {
         Rivalry.duels(of: f.me, against: f.max, in: f.matches, filter: DuelFilter(sport: sport))
     }
 

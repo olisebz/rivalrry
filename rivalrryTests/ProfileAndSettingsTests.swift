@@ -26,7 +26,7 @@ struct ProfileAndSettingsTests {
         #expect(!sports.contains(.tennis))
         #expect(!sports.contains(.boxing))
         #expect(sports.count == SportType.phase1Sports.count - 2)
-        #expect(SportSettings.entrySports(favorites: [], hidden: []) == SportType.phase1Sports)
+        #expect(SportSettings.entrySports(favorites: [], hidden: []) == Sport.builtInSports)
     }
 
     @Test func defaultFormatSetting() {

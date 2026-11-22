@@ -364,7 +364,7 @@ struct RunTimesChart: View {
 
 /// Bars side by side: your vs. their wins per sport.
 struct WinsBySportChart: View {
-    let records: [(sport: SportType, record: Record)]
+    let records: [(sport: Sport, record: Record)]
     let friendName: String
     @State private var selectedSport: String?
 

@@ -6,9 +6,12 @@ extension ResultRules {
 
     /// Checks a running result between two sides (plan.md §2.2).
     /// Faster time wins, exactly the same time is a draw, DNF loses, both DNF is a draw.
+    /// - Parameter needsDistance: `false` for custom time sports, which have no distances.
     static func validateTime(timeA: Int?, dnfA: Bool, timeB: Int?, dnfB: Bool,
-                             distanceMeters: Int?) -> Result<MatchResult, ResultIssue> {
-        guard let distanceMeters, distanceMeters > 0 else { return .failure(.invalidDistance) }
+                             distanceMeters: Int?, needsDistance: Bool = true) -> Result<MatchResult, ResultIssue> {
+        if needsDistance {
+            guard let distanceMeters, distanceMeters > 0 else { return .failure(.invalidDistance) }
+        }
         if !dnfA, (timeA ?? 0) <= 0 { return .failure(.missingTime) }
         if !dnfB, (timeB ?? 0) <= 0 { return .failure(.missingTime) }
 

@@ -39,7 +39,7 @@ struct FriendCard: View {
     /// Non-breaking spaces keep each part together, so a long line only wraps after "Last match:" or "·".
     private var lastMatchText: String? {
         guard let match = summary.lastMatch else { return nil }
-        let sport = match.customSport?.name ?? match.sportType.displayName
+        let sport = match.sport.displayName
         let keepTogether = { (text: String) in text.replacingOccurrences(of: " ", with: "\u{00A0}") }
         return "Last\u{00A0}match: \(keepTogether(sport))\u{00A0}· \(keepTogether(RelativeDay.text(for: match.date)))"
     }

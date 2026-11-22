@@ -29,16 +29,16 @@ enum ResultIssue: Error, Equatable {
     case invalidFormat
     case noSets
     /// Set not won by the rules (unfinished or impossible score). `set` is 1-based.
-    case setScore(set: Int, sport: SportType)
+    case setScore(set: Int, sport: Sport)
     case tiebreakMissing(set: Int)
-    case invalidTiebreak(set: Int, sport: SportType)
-    case tiebreakNotAllowed(set: Int, sport: SportType)
+    case invalidTiebreak(set: Int, sport: Sport)
+    case tiebreakNotAllowed(set: Int, sport: Sport)
     case tooManySets
     case matchNotDecided(setsNeeded: Int)
     case retiredAfterMatchEnded
     // points
     case negativeScore
-    case drawNotAllowed(SportType)
+    case drawNotAllowed(Sport)
     // penalties
     case invalidShotCount
     case invalidShotOrder
@@ -119,7 +119,7 @@ enum ResultIssue: Error, Equatable {
         }
     }
 
-    private static func setRuleText(for sport: SportType) -> String {
+    private static func setRuleText(for sport: Sport) -> String {
         guard let rules = sport.setRules else { return "invalid score" }
         if rules.tiebreak != nil {
             return "the winner needs \(rules.pointsToWin) games and a \(rules.winBy)-game lead, "
@@ -128,7 +128,7 @@ enum ResultIssue: Error, Equatable {
         return "the winner needs \(rules.pointsToWin) points and a \(rules.winBy)-point lead"
     }
 
-    private static func tiebreakScore(for sport: SportType) -> String {
+    private static func tiebreakScore(for sport: Sport) -> String {
         let games = sport.setRules?.pointsToWin ?? 6
         return "\(games + 1)–\(games)"
     }
