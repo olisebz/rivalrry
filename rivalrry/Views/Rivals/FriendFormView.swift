@@ -6,6 +6,9 @@ import SwiftData
 struct FriendFormView: View {
     /// `nil` = add a new friend.
     let friend: Player?
+    /// Set when pushed from S4 "Add Friend" ("Add Local Friend"): no own navigation stack,
+    /// and "Add" calls this instead of dismissing.
+    var onAdded: (() -> Void)? = nil
 
     @Query private var players: [Player]
     @Environment(\.modelContext) private var context
@@ -16,8 +19,9 @@ struct FriendFormView: View {
     @State private var colorHex: String
     @State private var photo: Data?
 
-    init(friend: Player? = nil) {
+    init(friend: Player? = nil, onAdded: (() -> Void)? = nil) {
         self.friend = friend
+        self.onAdded = onAdded
         _name = State(initialValue: friend?.name ?? "")
         _colorHex = State(initialValue: friend?.colorHex ?? FriendForm.colors[0])
         _photo = State(initialValue: friend?.photo)
@@ -33,30 +37,38 @@ struct FriendFormView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                PlayerFields(name: $name, colorHex: $colorHex, photo: $photo,
-                             nameIssue: nameIssue, focusesName: friend == nil, onSubmit: save)
-                    .padding(Spacing.m)
+        if onAdded != nil {
+            form
+        } else {
+            NavigationStack {
+                form
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { dismiss() }
+                        }
+                    }
             }
-            .scrollDismissesKeyboard(.interactively)
-            .background(Color.rvBackground)
-            .safeAreaInset(edge: .bottom) {
-                Button(friend == nil ? "Add" : "Save", action: save)
-                    .buttonStyle(PrimaryButtonStyle())
-                    .disabled(nameIssue != nil)
-                    .padding(Spacing.m)
-                    .background(Color.rvBackground)
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
+            .tint(Color.rvAccent)
         }
-        .tint(Color.rvAccent)
+    }
+
+    private var form: some View {
+        ScrollView {
+            PlayerFields(name: $name, colorHex: $colorHex, photo: $photo,
+                         nameIssue: nameIssue, focusesName: friend == nil, onSubmit: save)
+                .padding(Spacing.m)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color.rvBackground)
+        .safeAreaInset(edge: .bottom) {
+            Button(friend == nil ? "Add" : "Save", action: save)
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(nameIssue != nil)
+                .padding(Spacing.m)
+                .background(Color.rvBackground)
+        }
+        .navigationTitle(onAdded == nil ? title : "Add Local Friend")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func save() {
@@ -74,7 +86,7 @@ struct FriendFormView: View {
         } else {
             context.insert(Player(name: cleaned, photo: photo, colorHex: colorHex))
         }
-        dismiss()
+        if let onAdded { onAdded() } else { dismiss() }
     }
 }
 

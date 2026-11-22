@@ -32,7 +32,7 @@ struct RivalsView: View {
                 FriendDetailView(friend: friend)
             }
             .sheet(isPresented: $isAddingFriend) {
-                FriendFormView()
+                AddFriendView()
             }
             .overlay(alignment: .bottomTrailing) { quickAddButton }
             .sheet(isPresented: $isQuickAdding) {

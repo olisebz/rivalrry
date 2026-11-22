@@ -6,6 +6,8 @@ struct UsernameFormView: View {
     let me: Player
 
     @Environment(\.onlineBackend) private var backend
+    @Environment(\.onlineFriends) private var online
+    @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
     @State private var username: String
@@ -100,6 +102,8 @@ struct UsernameFormView: View {
                 if result == .taken {
                     isTaken = true
                 } else if result == nil {
+                    // Now online: load friend requests that were waiting for you.
+                    try? await online.refresh(me: me, context: context)
                     dismiss()
                 }
             } catch OnlineError.noAccount {

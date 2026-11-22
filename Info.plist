@@ -11,5 +11,19 @@
 		<key>UIColorName</key>
 		<string>Background</string>
 	</dict>
+	<!-- Invite links: rivalrry://invite/<username> (Phase 3, until there is a domain for Universal Links). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.oliverzengerpersonalteam.rivalrry.invite</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>rivalrry</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Scan a friend's QR code to add them.</string>
 </dict>
 </plist>
