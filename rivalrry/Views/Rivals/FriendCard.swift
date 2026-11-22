@@ -17,6 +17,12 @@ struct FriendCard: View {
                         .font(.subheadline)
                         .foregroundStyle(Color.rvTextSecondary)
                 }
+                if let streak = summary.streak {
+                    // SF Symbols instead of emojis (design.md §5).
+                    Label(streak.rowText, systemImage: streak.kind == .wins ? "flame" : "arrow.down.right")
+                        .font(.subheadline)
+                        .foregroundStyle(streak.kind == .wins ? Color.rvAccent : Color.rvTextSecondary)
+                }
             }
 
             Spacer(minLength: Spacing.s)

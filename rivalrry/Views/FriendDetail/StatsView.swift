@@ -55,8 +55,19 @@ struct StatsView: View {
             } else {
                 VStack(spacing: Spacing.m) {
                     HStack(spacing: Spacing.s) {
-                        StatTile(title: "Win rate", value: Rivalry.percentText(record.winRate))
                         StatTile(title: "Matches", value: "\(record.matches)")
+                        StatTile(title: "Win rate", value: Rivalry.percentText(record.winRate))
+                    }
+                    HStack(spacing: Spacing.s) {
+                        StatTile(title: "Current streak", value: Rivalry.currentStreak(duels)?.shortText ?? "–")
+                        StatTile(title: "Longest streak", value: Rivalry.longestWinStreak(duels)?.shortText ?? "–")
+                    }
+
+                    // Margins only compare within one sport with a score.
+                    if let sport, Rivalry.hasMargin(sport) {
+                        HighlightsRow(closest: Rivalry.closestWin(duels, me: me),
+                                      biggest: Rivalry.biggestWin(duels, me: me),
+                                      me: me)
                     }
 
                     // Who is better in this sport, in detail (decision 8).
@@ -190,6 +201,52 @@ struct BySportList: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+}
+
+/// "Highlights": horizontally scrolling tiles "Closest win", "Biggest win" (plan.md §4 S2a, decision 9).
+struct HighlightsRow: View {
+    let closest: WinHighlight?
+    let biggest: WinHighlight?
+    let me: Player
+
+    var body: some View {
+        if closest != nil || biggest != nil {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Text("Highlights")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(Color.rvTextPrimary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Spacing.s) {
+                        if let closest { tile("Closest win", closest) }
+                        if let biggest { tile("Biggest win", biggest) }
+                    }
+                }
+                .scrollClipDisabled()
+            }
+        }
+    }
+
+    private func tile(_ title: String, _ highlight: WinHighlight) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(title)
+                .font(.caption.weight(.medium))
+                .kerning(0.5)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.rvTextSecondary)
+            Text(highlight.match.scoreText(for: me))
+                .font(.rvScoreLarge)
+                .foregroundStyle(Color.rvTextPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(MatchDate.text(for: highlight.match.date))
+                .font(.subheadline)
+                .foregroundStyle(Color.rvTextSecondary)
+        }
+        .frame(width: 160, alignment: .leading)
+        .padding(Spacing.m)
+        .background(Color.rvSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 

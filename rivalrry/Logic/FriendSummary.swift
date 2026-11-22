@@ -5,6 +5,8 @@ struct FriendSummary: Identifiable {
     let friend: Player
     let record: Record
     let lastMatch: Match?
+    /// Current streak from 3 on (plan.md §4 S1).
+    var streak: Streak? = nil
 
     var id: UUID { friend.id }
 }
@@ -33,7 +35,8 @@ extension Rivalry {
             FriendSummary(
                 friend: friend,
                 record: me.map { record(of: $0, against: friend, in: matches) } ?? Record(),
-                lastMatch: me.flatMap { lastMatch(of: $0, with: friend, in: matches) }
+                lastMatch: me.flatMap { lastMatch(of: $0, with: friend, in: matches) },
+                streak: me.flatMap { cardStreak(of: $0, against: friend, in: matches) }
             )
         }
         return summaries.sorted { lhs, rhs in
