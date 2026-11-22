@@ -7,6 +7,7 @@ struct RivalsView: View {
     @Query private var matches: [Match]
     @AppStorage("rivalsSort") private var sort: RivalsSort = .recentlyPlayed
     @State private var isAddingFriend = false
+    @State private var isQuickAdding = false
 
     private var me: Player? { players.first(where: \.isMe) }
     private var friends: [Player] { players.filter { !$0.isMe } }
@@ -33,6 +34,29 @@ struct RivalsView: View {
             .sheet(isPresented: $isAddingFriend) {
                 FriendFormView()
             }
+            .overlay(alignment: .bottomTrailing) { quickAddButton }
+            .sheet(isPresented: $isQuickAdding) {
+                if let me { QuickAddView(me: me, friends: friends) }
+            }
+        }
+    }
+
+    /// Floating "+" bottom right: Quick Add (plan.md §4 S5), green (design.md §2.2).
+    @ViewBuilder
+    private var quickAddButton: some View {
+        if me != nil, friends.contains(where: { !$0.isArchived }) {
+            Button {
+                isQuickAdding = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(Color.rvOnAccent)
+                    .frame(width: 56, height: 56)
+                    .background(Color.rvAccent, in: Circle())
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+            }
+            .padding(Spacing.m)
+            .accessibilityLabel("Add Match")
         }
     }
 
@@ -63,6 +87,8 @@ struct RivalsView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .listRowSpacing(Spacing.s)
+        // Room for the floating "+" button.
+        .contentMargins(.bottom, 88, for: .scrollContent)
     }
 
     private func row(_ summary: FriendSummary, swipeTitle: String, setArchived: Bool) -> some View {
