@@ -43,6 +43,9 @@ struct StatsView: View {
         // Partners, not opponents: independent of the "Mode" filter (decision 9).
         let together = Rivalry.togetherRecord(of: me, with: friend, in: allMatches,
                                               filter: DuelFilter(sport: sport, mode: .team, since: period.since()))
+        // Always the current rating from all matches; "Period" only limits "Elo History" (plan.md §2.4).
+        let elo = Elo.table(for: allMatches)
+        let group = EloGroup(mode)
 
         VStack(alignment: .leading, spacing: Spacing.l) {
             filters(sports: sports)
@@ -58,12 +61,26 @@ struct StatsView: View {
 
                     // Who is better in this sport, in detail (decision 8).
                     if let sport {
+                        let eloRow = Elo.comparisonRow(mine: elo.rating(of: me, sport: sport, group: group),
+                                                       theirs: elo.rating(of: friend, sport: sport, group: group))
                         HeadToHeadCard(sport: sport, record: record,
-                                       rows: SportComparison.rows(for: sport, duels: duels, me: me),
+                                       rows: [eloRow] + SportComparison.rows(for: sport, duels: duels, me: me),
                                        friendName: friend.shortName)
                     }
 
                     RecordOverTimeChart(points: Rivalry.cumulativeWins(duels), friendName: friend.shortName)
+
+                    // Elo only from 3 matches: shown once one of you is ranked.
+                    if let sport, elo.isRanked(me, sport: sport, group: group)
+                        || elo.isRanked(friend, sport: sport, group: group) {
+                        let since = period.since()
+                        let window = { (points: [EloPoint]) in
+                            points.filter { point in since.map { point.date >= $0 } ?? true }
+                        }
+                        EloHistoryChart(mine: window(elo.history(of: me, sport: sport, group: group)),
+                                        theirs: window(elo.history(of: friend, sport: sport, group: group)),
+                                        friendName: friend.shortName)
+                    }
 
                     if sport == nil {
                         WinsBySportChart(records: bySport, friendName: friend.shortName)
@@ -74,7 +91,10 @@ struct StatsView: View {
                 .padding(.horizontal, Spacing.m)
 
                 if sport == nil {
-                    BySportList(records: bySport) { selected in
+                    BySportList(records: bySport, eloText: { sport in
+                        Elo.summary(mine: elo.rating(of: me, sport: sport, group: group),
+                                    theirs: elo.rating(of: friend, sport: sport, group: group))
+                    }) { selected in
                         withAnimation(.spring(duration: 0.3)) { sportRaw = selected.rawValue }
                     }
                     .padding(.horizontal, Spacing.m)
@@ -129,6 +149,8 @@ struct StatsView: View {
 /// "By Sport": one row per sport with record and win share bar. Tapping filters by that sport.
 struct BySportList: View {
     let records: [(sport: SportType, record: Record)]
+    /// "Elo 1240 vs 1180" below the sport name, `nil` to leave it out.
+    var eloText: (SportType) -> String? = { _ in nil }
     let select: (SportType) -> Void
 
     var body: some View {
@@ -143,9 +165,16 @@ struct BySportList: View {
                 } label: {
                     VStack(spacing: Spacing.s) {
                         HStack {
-                            Text(entry.sport.displayName)
-                                .font(.body)
-                                .foregroundStyle(Color.rvTextPrimary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.sport.displayName)
+                                    .font(.body)
+                                    .foregroundStyle(Color.rvTextPrimary)
+                                if let elo = eloText(entry.sport) {
+                                    Text(elo)
+                                        .font(.subheadline.monospacedDigit())
+                                        .foregroundStyle(Color.rvTextSecondary)
+                                }
+                            }
                             Spacer()
                             RecordText(record: entry.record, font: .body.weight(.semibold).monospacedDigit())
                             // Tapping opens the sport's "Head to Head".

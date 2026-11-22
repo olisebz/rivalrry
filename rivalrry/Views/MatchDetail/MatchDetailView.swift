@@ -9,6 +9,8 @@ struct MatchDetailView: View {
     var friend: Player? = nil
 
     @Environment(\.modelContext) private var context
+    /// Elo is computed from all matches (plan.md §2.4).
+    @Query private var allMatches: [Match]
     @Environment(\.dismiss) private var dismiss
     @State private var isEditing = false
     @State private var isEdited = false
@@ -31,6 +33,7 @@ struct MatchDetailView: View {
                 heading
                 scoreboard
                 details
+                eloChanges
                 if let note = match.note, !note.isEmpty {
                     section("Note") {
                         Text(note)
@@ -345,6 +348,32 @@ struct MatchDetailView: View {
             VStack(spacing: 0) {
                 detailRow(name(of: .a), TimeText.text(for: sideA))
                 detailRow(name(of: .b), TimeText.text(for: sideB))
+            }
+        }
+    }
+
+    // MARK: - Elo
+
+    /// Elo change per player, e.g. "+14" / "−14" (plan.md §4 S3).
+    @ViewBuilder
+    private var eloChanges: some View {
+        let changes = Elo.table(for: allMatches).changes(in: match)
+        // Same order as the scoreboard: finishing order, or your side first.
+        let ordered = match.mode == .race
+            ? match.raceOrder
+            : [sideA].compactMap { $0 } + match.participants(on: .a).filter { $0 !== sideA }
+                + [sideB].compactMap { $0 } + match.participants(on: .b).filter { $0 !== sideB }
+        let rows = ordered.compactMap { participant -> (name: String, change: Double)? in
+            guard let player = participant.player, let change = changes[player.id] else { return nil }
+            return (player.isMe ? "You" : player.shortName, change)
+        }
+        if !rows.isEmpty {
+            section("Elo") {
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                        detailRow(row.name, Elo.changeText(row.change))
+                    }
+                }
             }
         }
     }

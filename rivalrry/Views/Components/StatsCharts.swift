@@ -110,6 +110,72 @@ struct RecordOverTimeChart: View {
     }
 }
 
+// MARK: - Elo History
+
+/// Two lines: the Elo of both players after each of their matches in one sport (plan.md §4 S2c).
+struct EloHistoryChart: View {
+    let mine: [EloPoint]
+    let theirs: [EloPoint]
+    let friendName: String
+    @State private var selectedDate: Date?
+
+    private var axisFormat: Date.FormatStyle {
+        let english = Locale(identifier: "en_US")
+        let dates = (mine + theirs).map(\.date)
+        guard let first = dates.min(), let last = dates.max(),
+              last.timeIntervalSince(first) > 90 * 86_400 else {
+            return Date.FormatStyle(locale: english).month(.abbreviated).day()
+        }
+        return Date.FormatStyle(locale: english).month(.abbreviated)
+    }
+
+    /// Rating on or before `date`, "–" if the player hadn't played yet.
+    private func value(at date: Date, in points: [EloPoint]) -> String {
+        points.last { $0.date <= date }.map { "\(Int($0.rating.rounded()))" } ?? "–"
+    }
+
+    var body: some View {
+        ChartCard(title: "Elo History", friendName: friendName,
+                  selectionText: selectedDate.map {
+                      "\(MatchDate.text(for: $0)): \(value(at: $0, in: mine)) – \(value(at: $0, in: theirs))"
+                  }) {
+            Chart {
+                ForEach(Array(mine.enumerated()), id: \.offset) { _, point in
+                    LineMark(x: .value("Date", point.date), y: .value("Elo", point.rating),
+                             series: .value("Player", "You"))
+                        .foregroundStyle(Color.rvAccent)
+                }
+                .interpolationMethod(.monotone)
+                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+
+                ForEach(Array(theirs.enumerated()), id: \.offset) { _, point in
+                    LineMark(x: .value("Date", point.date), y: .value("Elo", point.rating),
+                             series: .value("Player", friendName))
+                        .foregroundStyle(Color.rvTextTertiary)
+                }
+                .interpolationMethod(.monotone)
+                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+
+                if let selectedDate {
+                    RuleMark(x: .value("Date", selectedDate))
+                        .foregroundStyle(Color.rvSeparator)
+                        .lineStyle(StrokeStyle(lineWidth: 1))
+                }
+            }
+            .chartYScale(domain: .automatic(includesZero: false))
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                    AxisValueLabel(format: axisFormat)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.rvTextSecondary)
+                }
+            }
+            .modifier(QuietAxes())
+            .chartXSelection(value: $selectedDate)
+        }
+    }
+}
+
 // MARK: - Wins by Sport
 
 /// Bars side by side: your vs. their wins per sport.
