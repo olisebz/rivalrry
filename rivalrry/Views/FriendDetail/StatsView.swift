@@ -93,11 +93,25 @@ struct StatsView: View {
                                         friendName: friend.shortName)
                     }
 
+                    if let sport, Rivalry.hasMargin(sport) {
+                        ScoreMarginChart(points: Rivalry.margins(duels, me: me), friendName: friend.shortName)
+                    }
+
+                    if sport == .running {
+                        let runs = Rivalry.runTimes(duels, me: me, friend: friend)
+                        if !runs.isEmpty {
+                            RunTimesChart(runs: runs, friendName: friend.shortName)
+                        }
+                    }
+
                     if sport == nil {
                         WinsBySportChart(records: bySport, friendName: friend.shortName)
                     }
 
                     WinRateChart(record: record, friendName: friend.shortName)
+
+                    ActivityChart(weeks: Rivalry.activityWeeks(duels, from: Rivalry.activityStart(for: period)),
+                                  friendName: friend.shortName)
                 }
                 .padding(.horizontal, Spacing.m)
 

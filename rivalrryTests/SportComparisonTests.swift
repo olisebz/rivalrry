@@ -109,6 +109,10 @@ struct SportComparisonTests {
         #expect(r["Wins by KO/TKO"] == ComparisonRow(title: "Wins by KO/TKO", mine: "1", theirs: "0", leader: .me))
         #expect(r["Wins by points"] == ComparisonRow(title: "Wins by points", mine: "0", theirs: "1", leader: .friend))
         #expect(r["Draws"]?.mine == "1")
+        // KO in round 2, two fights over all rounds.
+        let rounds = ResultRules.defaultFightRounds
+        let average = String(format: "%.1f", Double(2 + 2 * rounds) / 3)
+        #expect(r["Avg. rounds"] == ComparisonRow(title: "Avg. rounds", mine: average, theirs: average, leader: nil))
     }
 
     @Test func runningBestTimes() throws {

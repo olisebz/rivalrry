@@ -190,10 +190,15 @@ enum SportComparison {
             default: break
             }
         }
+        // Rounds actually fought: the end round of a stoppage, otherwise all rounds. Same for both.
+        let fights = matches.compactMap(\.fight)
+        let rounds = fights.map { $0.endRound ?? $0.totalRounds }
+        let avgRounds = rounds.isEmpty ? "–" : oneDecimal(Double(rounds.reduce(0, +)) / Double(rounds.count))
         return [
             compare("Wins by KO/TKO", stoppageMine, stoppageTheirs),
             compare("Wins by points", pointsMine, pointsTheirs),
             shared("Draws", draws),
+            ComparisonRow(title: "Avg. rounds", mine: avgRounds, theirs: avgRounds, leader: nil),
         ]
     }
 
