@@ -22,16 +22,59 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
      combined and sport-specific comparisons. This is Phase 1, pulled forward from the Phase 2 sport tiles.
   9. Phase 2 keeps decision 2: Overview stays header + "Recent Matches" + "Add Match". Elo goes into
      "By Sport" and "Head to Head"; "Highlights" and "Together" are sections in Stats.
+  10. Decisions made during Phase 2 (agreed with the user, keep them):
+      - Elo: Stats mode filter "All" shows the Singles Elo. The Period filter only limits the "Elo History"
+        chart; the Elo shown is always the current rating. Team K = average K of the team members.
+        "Elo" is the first row in "Head to Head". S3 shows the Elo change per player.
+      - Profile (S9) has an "Elo" section: table per sport + mode (Elo, matches, change in 30 days, highest
+        first); tapping a row opens a page with the "Elo History" chart and the match history. Not in plan.md.
+      - Streaks: a draw ends a streak. Stats tiles = Matches, Win rate, Current streak, Longest streak (2x2).
+        "Highlights" = only "Closest win" / "Biggest win", only when one sport with a score margin is selected.
+      - "Score Margin": sets = point difference over all sets; only when one sport is selected.
+        "Activity": follows the Period filter, "All" = last 12 months. Running chart: distance chips.
+      - Sport tiles: no duplicate tiles; missing values are extra "Head to Head" rows ("Avg. rounds").
+      - Quick Add: "+" floating bottom right on S1; sport and opponent on one screen; sport preselected,
+        opponent not.
+      - Custom sports: every custom sport counts on its own (type `Sport` in `Sports/Sport.swift`:
+        built-in by `SportType` or custom by ID; use `match.sport`, not `match.sportType`, for grouping).
+        Created in S9 and via a "New Sport" tile in the grid. Teams 2–11. Scoring is locked once there are
+        matches; deleting a sport deletes its matches.
+
+## Where we stand
+- Phase 1 and Phase 2 are done (incl. the extra "Elo" section in Profile). 214 tests pass
+  (`PhaseTwoDoneTests` checks the Phase 2 "Done when" criterion).
+- Everything is still local (SwiftData, status `.local`). No CloudKit yet.
+- Not checked visually in the simulator yet: most Phase 2 screens (only the Elo table preview was rendered).
 
 ## Way of working
-- Phase 1 is done. Now: ONLY Phase 2, in small steps. After each step: build the project, run the tests,
-  summarize briefly, then STOP and wait for an OK.
+- Now: Phase 3 ("Online with Friends", plan.md §8), in small steps. After each step: build the project,
+  run the tests, summarize briefly, then STOP and wait for an OK.
+- Before step 1, clarify with the user: CloudKit and push notifications need a paid Apple Developer account.
+  The current bundle ID `com.oliverzengerpersonalteam.rivalrry` looks like a free Personal Team.
 - Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
   4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
-- Phase 2 steps: 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·
+- Phase 2 steps (done): 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·
   4 Streaks & Highlights · 5 "Score Margin", "Activity", sport tiles · 6 S5 Quick Add ("+" button) ·
-  7 Custom sports
+  7 Custom sports · extra: "Elo" section in Profile
+- Phase 3 steps (proposal, confirm with the user first): 1 CloudKit setup, username, profile sync ·
+  2 Invite friends (link, QR code, search) + friend requests · 3 Match sync, `MatchResponse`,
+  status `Pending`/`Confirmed`/`Rejected` · 4 S6 Requests (confirm, reject with reason, remind,
+  deletion requests) + "Requests" tab · 5 Push notifications · 6 "Link to Account" + import of old
+  matches (plan.md §6.3) · 7 Offline mode
 - All texts in the app in English and exactly as in plan.md.
 - If something is unclear or you want to deviate from the plan: ask first.
 - Sample data for previews: design.md §9.4 (Max, Tom, Lukas, Jonas).
 - Tests run in the `rivalrry` scheme (the test target depends on the app in `project.xcproj`).
+  Use a simulator as run destination (e.g. "iPhone 17 Pro"): on the user's iPhone the test target fails
+  signing (it has no development team).
+
+## Commits
+- Never commit or push yourself. After each step, give the user a copy-paste command, run from the
+  repo root:
+  ```sh
+  git add <changed files or folders>
+  git commit -m 'Phase 3 step N: short title' -m '- what changed
+  - what changed'
+  ```
+- No `Co-Authored-By` or other AI attribution lines.
+- Leave out `rivalrry.xcodeproj/project.xcproj` (the user's own signing change) unless the user says otherwise.
