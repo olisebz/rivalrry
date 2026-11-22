@@ -25,6 +25,9 @@ struct EloKey: Hashable {
 struct EloPoint: Equatable {
     let date: Date
     let rating: Double
+    /// The match that led to this rating, and the change it brought ("Elo" in Profile).
+    var match: Match? = nil
+    var change: Double = 0
 }
 
 /// All ratings, computed from all counting matches in chronological order (plan.md §2.4).
@@ -180,8 +183,66 @@ enum Elo {
             let new = table.ratings[key, default: start] + delta
             table.ratings[key] = new
             table.matchCounts[key, default: 0] += 1
-            table.history[key, default: []].append(EloPoint(date: match.date, rating: new))
+            table.history[key, default: []].append(EloPoint(date: match.date, rating: new,
+                                                                        match: match, change: delta))
             table.changes[match.id, default: [:]][player.id] = delta
         }
+    }
+}
+
+// MARK: - Your Elo (Profile)
+
+/// One row of the "Elo" table in Profile: a sport in one mode group.
+struct EloEntry: Hashable, Identifiable {
+    let sport: Sport
+    let group: EloGroup
+    /// Rounded, `nil` while "Unranked".
+    let rating: Int?
+    let matches: Int
+    /// Change in the last 30 days, `nil` without a match in that time.
+    let recentChange: Int?
+
+    var id: String { "\(sport.id).\(group)" }
+
+    /// "Badminton", "Badminton · Team".
+    var title: String { group == .team ? "\(sport.displayName) · Team" : sport.displayName }
+
+    static func == (lhs: EloEntry, rhs: EloEntry) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
+extension EloTable {
+    static let recentDays = 30
+
+    /// All your ratings: ranked ones by Elo (highest first), then unranked ones by matches.
+    func entries(of player: Player, now: Date = Date(), calendar: Calendar = .current) -> [EloEntry] {
+        let cutoff = calendar.date(byAdding: .day, value: -Self.recentDays, to: now) ?? now
+        let entries = history.compactMap { key, points -> EloEntry? in
+            guard key.playerID == player.id, let last = points.last else { return nil }
+            let ranked = points.count >= Elo.minimumMatches
+            // Rating at the cutoff: the last one before it, or the start rating.
+            let before = points.last { $0.date < cutoff }?.rating ?? Elo.start
+            let recent = points.contains { $0.date >= cutoff }
+            return EloEntry(sport: key.sport, group: key.group,
+                            rating: ranked ? Int(last.rating.rounded()) : nil,
+                            matches: points.count,
+                            recentChange: recent ? Int((last.rating - before).rounded()) : nil)
+        }
+        return entries.sorted { lhs, rhs in
+            switch (lhs.rating, rhs.rating) {
+            case let (l?, r?) where l != r: return l > r
+            case (.some, nil): return true
+            case (nil, .some): return false
+            default:
+                return lhs.matches != rhs.matches ? lhs.matches > rhs.matches : lhs.title < rhs.title
+            }
+        }
+    }
+}
+
+extension Elo {
+    /// "+14" for the table; "–" without a recent match.
+    static func recentText(_ change: Int?) -> String {
+        change.map { changeText(Double($0)) } ?? "–"
     }
 }

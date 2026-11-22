@@ -27,6 +27,7 @@ struct ProfileView: View {
                     if let me {
                         profileHeader(me)
                         stats(Rivalry.profileStats(of: me, in: matches))
+                        EloTableSection(entries: Elo.table(for: matches).entries(of: me))
                     }
                     sportsSection
                     resetButton
@@ -35,6 +36,9 @@ struct ProfileView: View {
             }
             .background(Color.rvBackground)
             .navigationTitle("Profile")
+            .navigationDestination(for: EloEntry.self) { entry in
+                if let me { EloDetailView(entry: entry, me: me) }
+            }
             .sheet(isPresented: $isEditingProfile) {
                 if let me { FriendFormView(friend: me) }
             }

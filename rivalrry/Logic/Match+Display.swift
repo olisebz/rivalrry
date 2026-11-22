@@ -183,3 +183,15 @@ extension Rivalry {
         context.delete(friend)
     }
 }
+
+extension Match {
+    /// Who `player` played against: "vs Max", "vs Max & Lukas", "Race · 4 racers".
+    func opponentsText(for player: Player) -> String {
+        if mode == .race { return "Race · \(participants.count) racers" }
+        guard let mySide = side(of: player) else { return "" }
+        let names = participants(on: mySide.opponent)
+            .map { $0.player?.shortName ?? "Deleted Player" }
+            .sorted()
+        return "vs " + names.joined(separator: " & ")
+    }
+}
