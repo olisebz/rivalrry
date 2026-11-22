@@ -10,6 +10,7 @@ struct FriendFormView: View {
     @Query private var players: [Player]
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.onlineBackend) private var backend
 
     @State private var name: String
     @State private var colorHex: String
@@ -65,6 +66,11 @@ struct FriendFormView: View {
             friend.name = cleaned
             friend.colorHex = colorHex
             friend.photo = photo
+            // Your online profile follows "Edit Profile" (Phase 3). Offline retries come in step 7.
+            if friend.isMe {
+                let backend = backend
+                Task { try? await ProfileSync.push(friend, backend: backend) }
+            }
         } else {
             context.insert(Player(name: cleaned, photo: photo, colorHex: colorHex))
         }

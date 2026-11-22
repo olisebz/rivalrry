@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// S9 – Profile & Settings, Phase 1 (plan.md §4 S9): profile, own stats, "Sports", "Reset All Data".
+/// S9 – Profile & Settings (plan.md §4 S9): profile with username (Phase 3), own stats, "Sports", "Reset All Data".
 struct ProfileView: View {
     @Query private var players: [Player]
     @Query private var matches: [Match]
@@ -13,6 +13,7 @@ struct ProfileView: View {
     @AppStorage(SportSettings.onboardedKey) private var isOnboarded = false
 
     @State private var isEditingProfile = false
+    @State private var isEditingUsername = false
     @State private var isConfirmingReset = false
     @State private var isConfirmingResetAgain = false
     @State private var isCreatingSport = false
@@ -42,6 +43,9 @@ struct ProfileView: View {
             .sheet(isPresented: $isEditingProfile) {
                 if let me { FriendFormView(friend: me) }
             }
+            .sheet(isPresented: $isEditingUsername) {
+                if let me { UsernameFormView(me: me) }
+            }
             .sheet(isPresented: $isCreatingSport) { CustomSportFormView() }
             .sheet(item: $editedSport) { CustomSportFormView(sport: $0) }
             // "Reset All Data" asks twice (plan.md §4 S9).
@@ -68,6 +72,10 @@ struct ProfileView: View {
                 Text(me.name)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(Color.rvTextPrimary)
+                // Online username (Phase 3); tap to choose or change it.
+                Button(me.username.map { "@\($0)" } ?? "Choose Username") { isEditingUsername = true }
+                    .font(.subheadline)
+                    .foregroundStyle(Color.rvTextSecondary)
                 Button("Edit Profile") { isEditingProfile = true }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.rvTextSecondary)

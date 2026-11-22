@@ -13,6 +13,8 @@ final class Player {
     var isArchived: Bool = false
     /// Linked iCloud user (Phase 3).
     var cloudUserID: String?
+    /// Online username (Phase 3, plan.md §6.1). Only set for "me" and linked friends.
+    var username: String?
     var createdAt: Date = Date()
 
     /// All matches this player took part in. Deleting a player keeps the
@@ -22,13 +24,14 @@ final class Player {
 
     init(name: String, photo: Data? = nil, colorHex: String = "6E6E73",
          isMe: Bool = false, isArchived: Bool = false, cloudUserID: String? = nil,
-         createdAt: Date = Date()) {
+         username: String? = nil, createdAt: Date = Date()) {
         self.name = name
         self.photo = photo
         self.colorHex = colorHex
         self.isMe = isMe
         self.isArchived = isArchived
         self.cloudUserID = cloudUserID
+        self.username = username
         self.createdAt = createdAt
     }
 }

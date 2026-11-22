@@ -49,8 +49,10 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
 ## Way of working
 - Now: Phase 3 ("Online with Friends", plan.md §8), in small steps. After each step: build the project,
   run the tests, summarize briefly, then STOP and wait for an OK.
-- Before step 1, clarify with the user: CloudKit and push notifications need a paid Apple Developer account.
-  The current bundle ID `com.oliverzengerpersonalteam.rivalrry` looks like a free Personal Team.
+- No paid Apple Developer account yet (user is getting one). Until then: build everything behind the
+  `OnlineBackend` protocol (`Online/OnlineBackend.swift`) with `InMemoryBackend`; CloudKit implementation
+  and push notifications get wired in once the account is active.
+- Phase 3 steps done: 1 username + profile sync (backend-agnostic)
 - Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
   4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
 - Phase 2 steps (done): 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·
