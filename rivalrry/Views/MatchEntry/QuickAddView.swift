@@ -8,6 +8,7 @@ struct QuickAddView: View {
     let friends: [Player]
 
     @Environment(\.modelContext) private var context
+    @Environment(\.onlineFriends) private var online
     @Environment(\.dismiss) private var dismiss
     @Query private var matches: [Match]
 
@@ -114,6 +115,8 @@ struct QuickAddView: View {
     private func save(_ draft: MatchDraft, against friend: Player) {
         guard draft.isValid else { return }
         draft.insertMatch(me: me, friend: friend, into: context)
+        // Online matches go up right away (Phase 3).
+        Task { try? await online.syncMatches(me: me, context: context) }
         isEdited = false
         dismiss()
     }

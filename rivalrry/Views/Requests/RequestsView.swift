@@ -71,7 +71,7 @@ struct RequestsView: View {
 
     private func refresh() async {
         guard let me else { return }
-        try? await online.refresh(me: me, context: context)
+        try? await online.syncAll(me: me, context: context)
     }
 
     private func respond(_ incoming: OnlineFriends.Incoming, accept: Bool) {

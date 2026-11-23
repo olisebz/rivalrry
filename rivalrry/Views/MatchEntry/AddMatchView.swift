@@ -9,6 +9,7 @@ struct AddMatchView: View {
     let onSaved: () -> Void
 
     @Environment(\.modelContext) private var context
+    @Environment(\.onlineFriends) private var online
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedSport: Sport?
@@ -87,6 +88,8 @@ struct AddMatchView: View {
     private func save(_ draft: MatchDraft) {
         guard let me, draft.isValid else { return }
         draft.insertMatch(me: me, friend: friend, into: context)
+        // Online matches go up right away (Phase 3).
+        Task { try? await online.syncMatches(me: me, context: context) }
         isEdited = false
         onSaved()
         dismiss()

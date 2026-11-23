@@ -7,6 +7,8 @@ struct FriendSummary: Identifiable {
     let lastMatch: Match?
     /// Current streak from 3 on (plan.md §4 S1).
     var streak: Streak? = nil
+    /// Matches with this friend wait for confirmation (Phase 3): small clock on the card.
+    var hasPending = false
 
     var id: UUID { friend.id }
 }
@@ -36,7 +38,10 @@ extension Rivalry {
                 friend: friend,
                 record: me.map { record(of: $0, against: friend, in: matches) } ?? Record(),
                 lastMatch: me.flatMap { lastMatch(of: $0, with: friend, in: matches) },
-                streak: me.flatMap { cardStreak(of: $0, against: friend, in: matches) }
+                streak: me.flatMap { cardStreak(of: $0, against: friend, in: matches) },
+                hasPending: me.map { me in
+                    matches.contains { $0.status == .pending && $0.includes(me) && $0.includes(friend) }
+                } ?? false
             )
         }
         return summaries.sorted { lhs, rhs in

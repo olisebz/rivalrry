@@ -9,9 +9,18 @@ struct FriendCard: View {
             AvatarView(player: summary.friend)
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(summary.friend.shortName)
-                    .font(.headline)
-                    .foregroundStyle(Color.rvTextPrimary)
+                HStack(spacing: Spacing.xs) {
+                    Text(summary.friend.shortName)
+                        .font(.headline)
+                        .foregroundStyle(Color.rvTextPrimary)
+                    if summary.hasPending {
+                        // Matches waiting for confirmation (plan.md §4 S1, design.md §5 `clock`).
+                        Image(systemName: "clock")
+                            .font(.footnote)
+                            .foregroundStyle(Color.rvTextSecondary)
+                            .accessibilityLabel("Waiting for confirmation")
+                    }
+                }
                 if let lastMatchText {
                     Text(lastMatchText)
                         .font(.subheadline)

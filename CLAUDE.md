@@ -52,12 +52,19 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
 - No paid Apple Developer account yet (user is getting one). Until then: build everything behind the
   `OnlineBackend` protocol (`Online/OnlineBackend.swift`) with `InMemoryBackend`; CloudKit implementation
   and push notifications get wired in once the account is active.
-- Phase 3 steps done: 1 username + profile sync (backend-agnostic) · 2 invite friends + friend requests
+- Phase 3 steps done: 1 username + profile sync (backend-agnostic) · 2 invite friends + friend requests ·
+  3 match sync, `MatchResponse`, status
 - Phase 3 decisions (agreed with the user): invite link = `rivalrry://invite/<username>` until there is a
   domain for Universal Links. "Requests" tab (S6) exists since step 2 with only "Friend requests"; step 4
   adds the rest. S4 = online part on top (search, QR, "Share Invite Link", "Scan QR Code"), row
   "Add Local Friend" below. Debug builds seed `InMemoryBackend` with Max/Tom/Lukas/Jonas (Jonas sends
   you a request; the others accept yours automatically).
+- Step 3 decisions: a match is online (`Pending`) only if every participant has a `cloudUserID`; otherwise
+  `Local`. Only opponents confirm (team partners don't). Custom sports travel with the match and are added
+  on the other device. Matches with people who aren't your friends are not downloaded. Test users: Max
+  confirms, Tom rejects ("It was 21–19, not 21–17"), Lukas never answers, Jonas logged a Badminton match.
+  Moved to step 4: S6 Confirm/Reject/Remind, deletion requests, editing a `Confirmed` match (until then
+  Edit/Delete are hidden for confirmed matches and for other people's matches).
 - Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
   4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
 - Phase 2 steps (done): 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·

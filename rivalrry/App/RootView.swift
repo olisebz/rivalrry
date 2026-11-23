@@ -29,7 +29,7 @@ struct RootView: View {
             .sheet(item: $invitation) { InviteSheet(username: $0.username) }
             .task(id: scenePhase) {
                 guard scenePhase == .active, let me = players.first(where: \.isMe) else { return }
-                try? await online.refresh(me: me, context: context)
+                try? await online.syncAll(me: me, context: context)
             }
         } else {
             OnboardingView()

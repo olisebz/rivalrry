@@ -8,9 +8,14 @@ enum Side: String, Codable, CaseIterable {
 }
 
 enum MatchStatus: String, Codable, CaseIterable {
-    /// Phase 1–2: entered locally, counts immediately.
+    /// Entered locally, counts immediately. From Phase 3 only matches with local players
+    /// (friends without the app) stay `local`.
     case local
-    case pending, confirmed, rejected
+    /// Online match waiting for the opponents (plan.md §6.1). Doesn't count.
+    case pending
+    case confirmed
+    /// An opponent rejected the current version. Doesn't count.
+    case rejected
 }
 
 /// One entered game, race or fight.
@@ -32,6 +37,15 @@ final class Match {
     var updatedAt: Date = Date()
     var version: Int = 1
     var isImported: Bool = false
+
+    // MARK: Online (Phase 3)
+    /// Created or changed here and not uploaded yet (your own online matches only).
+    var needsUpload: Bool = false
+    /// Users who confirmed the current version.
+    var confirmedUserIDs: [String] = []
+    /// The opponent who rejected the current version, with their reason.
+    var rejectedByUserID: String?
+    var rejectionReason: String?
 
     @Relationship(deleteRule: .cascade, inverse: \MatchParticipant.match)
     var participants: [MatchParticipant] = []

@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// S3 – Match Detail: the full result, "Edit" and "Delete" (plan.md §4 S3, Phase 1–2).
+/// S3 – Match Detail: the full result, status banner (Phase 3), "Edit" and "Delete" (plan.md §4 S3).
 struct MatchDetailView: View {
     let match: Match
     let me: Player
@@ -12,6 +12,7 @@ struct MatchDetailView: View {
     /// Elo is computed from all matches (plan.md §2.4).
     @Query private var allMatches: [Match]
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.onlineFriends) private var online
     @State private var isEditing = false
     @State private var isEdited = false
     @State private var isConfirmingDelete = false
@@ -31,6 +32,7 @@ struct MatchDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 heading
+                statusBanner
                 scoreboard
                 details
                 eloChanges
@@ -41,10 +43,12 @@ struct MatchDetailView: View {
                             .foregroundStyle(Color.rvTextPrimary)
                     }
                 }
-                Button("Delete Match", role: .destructive) { isConfirmingDelete = true }
-                    .font(.headline)
-                    .foregroundStyle(Color.rvDestructive)
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                if match.canEditOrDelete {
+                    Button("Delete Match", role: .destructive) { isConfirmingDelete = true }
+                        .font(.headline)
+                        .foregroundStyle(Color.rvDestructive)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
             }
             .padding(Spacing.m)
         }
@@ -52,9 +56,11 @@ struct MatchDetailView: View {
         .navigationTitle(match.sport.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Edit") { isEditing = true }
-                    .disabled(!canEdit)
+            if match.canEditOrDelete {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") { isEditing = true }
+                        .disabled(!canEdit)
+                }
             }
         }
         .sheet(isPresented: $isEditing) { editSheet }
@@ -68,7 +74,14 @@ struct MatchDetailView: View {
         }
         .onDisappear {
             // Delete after leaving the screen, so it never shows a deleted match.
-            if deleteOnDisappear { context.delete(match) }
+            guard deleteOnDisappear else { return }
+            // Your online match disappears for the others too.
+            if match.status != .local {
+                let id = match.id
+                let backend = online.backend
+                Task { try? await MatchSync.deleteOnline(matchID: id, backend: backend) }
+            }
+            context.delete(match)
         }
     }
 
@@ -77,6 +90,35 @@ struct MatchDetailView: View {
     private var canEdit: Bool {
         match.mode != .race && (match.sport.isCustom || SportType.phase1Sports.contains(match.sportType))
             && !match.participants.isEmpty && match.participants.allSatisfy { $0.player != nil }
+    }
+
+    // MARK: - Status
+
+    /// "Waiting for Max to confirm", "Confirmed", "Rejected by Max: …" (plan.md §4 S3). Neutral colors:
+    /// red is only for deleting (decision 5).
+    @ViewBuilder
+    private var statusBanner: some View {
+        if let text = match.statusText {
+            Label {
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.rvTextPrimary)
+            } icon: {
+                Image(systemName: statusSymbol)
+                    .foregroundStyle(Color.rvTextSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Spacing.m)
+            .background(Color.rvSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        }
+    }
+
+    private var statusSymbol: String {
+        switch match.status {
+        case .confirmed: "checkmark"
+        case .rejected: "xmark"
+        case .pending, .local: "clock"
+        }
     }
 
     // MARK: - Heading
@@ -422,6 +464,7 @@ struct MatchDetailView: View {
                                onCancel: { isEditing = false }) { draft in
                     guard draft.isValid else { return }
                     draft.apply(to: match, context: context)
+                    Task { try? await online.syncMatches(me: me, context: context) }
                     isEdited = false
                     isEditing = false
                 }

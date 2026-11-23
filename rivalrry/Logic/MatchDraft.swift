@@ -328,7 +328,8 @@ struct MatchDraft: Equatable {
 
     // MARK: - Saving
 
-    /// Creates and inserts the match. Phase 1–2: status `Local`, counts immediately.
+    /// Creates and inserts the match. With local players: status `Local`, counts immediately.
+    /// With online friends only: `Pending` until all opponents confirm (Phase 3).
     @discardableResult
     func insertMatch(me: Player, friend: Player, into context: ModelContext) -> Match {
         let match = Match(sportType: sport.storedType, customSport: sport.custom, mode: isRace ? .race : mode,
@@ -338,6 +339,7 @@ struct MatchDraft: Equatable {
             match.participants = raceParticipants(me: me, friend: friend)
             match.distanceMeters = sport.usesDistance ? distanceMeters : nil
             match.note = note.isEmpty ? nil : String(note.prefix(Self.noteLimit))
+            MatchSync.prepareNew(match)
             return match
         }
         match.participants = [MatchParticipant(player: me, side: .a), MatchParticipant(player: friend, side: .b)]
@@ -346,6 +348,7 @@ struct MatchDraft: Equatable {
                 + opponents.map { MatchParticipant(player: $0, side: .b) }
         }
         write(to: match, context: context)
+        MatchSync.prepareNew(match)
         return match
     }
 
@@ -371,6 +374,7 @@ struct MatchDraft: Equatable {
         match.updatedAt = Date()
         match.version += 1
         write(to: match, context: context)
+        MatchSync.prepareEdited(match)
     }
 
     private func write(to match: Match, context: ModelContext) {
