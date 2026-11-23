@@ -35,6 +35,17 @@ struct LinkRecord: Equatable, Codable, Sendable {
     var linkedAt: Date = Date()
 }
 
+/// A group as stored online (Phase 4, plan.md S8). Any member may rename it and add or remove members.
+/// Only online members are stored; local friends in a group stay on your phone.
+struct GroupRecord: Identifiable, Equatable, Codable, Sendable {
+    var id: UUID
+    var name: String
+    var symbolName: String
+    var memberUserIDs: [String]
+    var createdByUserID: String
+    var createdAt: Date = Date()
+}
+
 enum OnlineError: Error, Equatable {
     /// Someone else already has this username.
     case usernameTaken
@@ -84,6 +95,17 @@ protocol OnlineBackend: AnyObject {
     func fetchLinks() async throws -> [LinkRecord]
     /// Creates or replaces your link to a friend.
     func saveLink(_ link: LinkRecord) async throws
+
+    /// Groups you are a member of.
+    func fetchGroups() async throws -> [GroupRecord]
+    /// Creates a group (you must be a member), or changes name and symbol of a group you are in.
+    /// Members only change through `addGroupMembers` / `removeGroupMember`. Throws `.notAllowed` otherwise.
+    func saveGroup(_ group: GroupRecord) async throws
+    /// Throws `.notAllowed` if you aren't a member (or the group is gone).
+    func addGroupMembers(groupID: UUID, userIDs: [String]) async throws
+    /// Removes a member; removing yourself is "Leave Group". The group is deleted when nobody is left.
+    /// Throws `.notAllowed` if you aren't a member (or the group is gone).
+    func removeGroupMember(groupID: UUID, userID: String) async throws
 }
 
 /// Backend that keeps everything in memory. Used for tests and previews, and in the app
@@ -95,6 +117,7 @@ final class InMemoryBackend: OnlineBackend {
     private(set) var matches: [UUID: MatchRecord] = [:]
     private(set) var responses: [MatchResponse] = []
     private(set) var links: [LinkRecord] = []
+    private(set) var groups: [UUID: GroupRecord] = [:]
     /// Simulates a lost connection: every call throws `.offline`.
     var isOffline = false
     /// Users that accept your requests right away (debug test users).
@@ -106,7 +129,8 @@ final class InMemoryBackend: OnlineBackend {
     init(userID: String? = "local-user", profiles: [OnlineProfile] = [],
          requests: [FriendRequest] = [], autoAccepting: Set<String> = [],
          matches: [MatchRecord] = [], responses: [MatchResponse] = [],
-         autoResponses: [String: (MatchResponse.Kind, String?)] = [:], links: [LinkRecord] = []) {
+         autoResponses: [String: (MatchResponse.Kind, String?)] = [:], links: [LinkRecord] = [],
+         groups: [GroupRecord] = []) {
         self.userID = userID
         for profile in profiles { self.profiles[profile.userID] = profile }
         self.requests = requests
@@ -115,6 +139,7 @@ final class InMemoryBackend: OnlineBackend {
         self.responses = responses
         self.autoResponses = autoResponses
         self.links = links
+        for group in groups { self.groups[group.id] = group }
     }
 
     func currentUserID() async throws -> String {
@@ -249,6 +274,47 @@ final class InMemoryBackend: OnlineBackend {
     func receive(_ link: LinkRecord) {
         links.removeAll { $0.userID == link.userID && $0.friendUserID == link.friendUserID }
         links.append(link)
+    }
+
+    func fetchGroups() async throws -> [GroupRecord] {
+        try checkConnection()
+        let me = try await currentUserID()
+        return groups.values.filter { $0.memberUserIDs.contains(me) }.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func saveGroup(_ group: GroupRecord) async throws {
+        try checkConnection()
+        let me = try await currentUserID()
+        if var existing = groups[group.id] {
+            guard existing.memberUserIDs.contains(me) else { throw OnlineError.notAllowed }
+            existing.name = group.name
+            existing.symbolName = group.symbolName
+            groups[group.id] = existing
+        } else {
+            guard group.memberUserIDs.contains(me) else { throw OnlineError.notAllowed }
+            groups[group.id] = group
+        }
+    }
+
+    func addGroupMembers(groupID: UUID, userIDs: [String]) async throws {
+        try checkConnection()
+        let me = try await currentUserID()
+        guard var group = groups[groupID], group.memberUserIDs.contains(me) else { throw OnlineError.notAllowed }
+        for userID in userIDs where !group.memberUserIDs.contains(userID) { group.memberUserIDs.append(userID) }
+        groups[groupID] = group
+    }
+
+    func removeGroupMember(groupID: UUID, userID: String) async throws {
+        try checkConnection()
+        let me = try await currentUserID()
+        guard var group = groups[groupID], group.memberUserIDs.contains(me) else { throw OnlineError.notAllowed }
+        group.memberUserIDs.removeAll { $0 == userID }
+        groups[groupID] = group.memberUserIDs.isEmpty ? nil : group
+    }
+
+    /// A group as changed by another member on their device (tests).
+    func receive(_ group: GroupRecord) {
+        groups[group.id] = group
     }
 
     private func checkConnection() throws {

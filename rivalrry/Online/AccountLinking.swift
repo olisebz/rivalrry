@@ -134,6 +134,9 @@ enum AccountLinking {
         local.photo = online.photo ?? local.photo
         local.importsMatches = online.importsMatches
         local.isArchived = local.isArchived && online.isArchived
+        for group in online.groups where !group.members.contains(where: { $0.id == local.id }) {
+            group.members.append(local)
+        }
         context.delete(online)
     }
 }

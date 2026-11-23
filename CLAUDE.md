@@ -83,18 +83,28 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   deletions, Tom rejects/declines ("It was 21–19, not 21–17"), Lukas never answers.
 
 ## Next: Phase 4 ("Groups & Rankings", plan.md §8, S7, S8)
-- Start Phase 4 now. Before step 1, clarify with the user (ask, don't guess):
-  1. Are groups only on your phone, or shared online with the members (plan.md S8 has "Leave Group",
-     which suggests shared)? If shared: through `OnlineBackend` like friends/matches.
-  2. Rankings should include "matches between friends without you" (plan.md S7 note). That needs a new
-     `OnlineBackend` call (today `fetchMatches()` only returns matches you take part in). OK to add?
-  3. Group "emoji" (plan.md §5) → SF Symbol picker like custom sports (decision 4: no emojis)?
-  4. plan.md has no "Done when" for Phase 4; propose one and confirm it.
-- Step proposal (confirm with the user first): 1 `Group` model + S1 section "Groups" + "New Group" ·
-  2 S8 Group Detail (members, rename, "Leave Group", recent matches) · 3 S8 "Add Match" with participants
-  only from the group · 4 ranking logic (Elo per player for "All Friends"/group, sport, "Singles"/"Team",
-  "Unranked" under 3 matches, 30-day trend) + tests · 5 S7 "Rankings" tab with filters, you highlighted ·
-  6 "Best Duos" + "Your Best Partner" · 7 Phase 4 done-when test.
+- Agreed with the user (keep these decisions):
+  - Groups are shared online through `OnlineBackend` like friends/matches. Members see the group;
+    "Leave Group" removes you for everyone. Local friends can be members, but only online members get the group.
+  - Rankings include matches between friends without you: new `OnlineBackend` call for confirmed matches
+    among your online friends. They count only in Rankings, not in your record or friend stats.
+    `InMemoryBackend.withTestUsers()` gets a few matches between the test users.
+  - Group "emoji" (plan.md §5) = SF Symbol, same picker as custom sports, stored as a symbol name.
+  - Done when: you can create a group, add/remove members, rename it, leave it; log a match from S8 with
+    only group members; S7 shows Elo rankings for "All Friends" or a group, per sport and "Singles"/"Team",
+    you highlighted, "Unranked" (under 3 matches) greyed at the bottom, a 30-day trend; "Best Duos"
+    (3+ matches together, by win rate) and "Your Best Partner" are right. `PhaseFourDoneTests` checks this,
+    all tests pass.
+- Steps: 1 `Group` model + `OnlineBackend` group calls (create, rename, members, leave, fetch) + sync + tests ·
+  2 S1 "Groups" section + "New Group" (name, SF Symbol, members) · 3 S8 Group Detail (members, rename,
+  add/remove, "Leave Group", recent matches) · 4 S8 "Add Match" with participants only from the group ·
+  5 backend call for friends' matches without you + ranking logic (Elo, "Unranked", 30-day trend) + tests ·
+  6 S7 "Rankings" tab with filters, you highlighted, also the group ranking in S8 ·
+  7 "Best Duos" + "Your Best Partner" · 8 `PhaseFourDoneTests`.
+- Built so far: the model is `PlayerGroup` (`Models/PlayerGroup.swift`; `Group` clashes with SwiftUI), sync in
+  `Online/GroupSync.swift`. Any member renames and adds/removes members. `memberUserIDs` = online members as
+  last known (also members who aren't your friends); `members` = local players incl. local friends.
+  Groups made before a username go online on the next sync; local friends linked later join online then.
 - Reuse `Logic/Elo.swift` (already per sport + mode group, `Elo.table`) and the S9 Elo table views.
 
 ## Way of working
@@ -114,6 +124,7 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   5 "Score Margin", "Activity", sport tiles · 6 S5 Quick Add · 7 Custom sports · extra: "Elo" in Profile.
   Phase 3: 1 username, profile sync · 2 invite friends + friend requests · 3 match sync, `MatchResponse`,
   status · 4 S6 Requests · 5 "Link to Account" + import · 6 Offline mode (push moved to Phase 3b).
+  Phase 4: 1 `PlayerGroup` model + group sync.
 
 ## Commits
 - Never commit or push yourself. After each step, give the user a copy-paste command, run from the

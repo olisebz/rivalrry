@@ -12,6 +12,11 @@ enum OutboxAction: Codable, Equatable {
     case profile(OnlineProfile)
     /// Your link after "Link to Account".
     case link(LinkRecord)
+    /// A new group, or its new name and symbol (Phase 4).
+    case saveGroup(GroupRecord)
+    case addGroupMembers(groupID: UUID, userIDs: [String])
+    /// Removing a member, or yourself ("Leave Group").
+    case removeGroupMember(groupID: UUID, userID: String)
 }
 
 /// One queued action, kept until it's sent (survives closing the app).
@@ -86,6 +91,11 @@ enum Outbox {
         case .deleteMatch(let id): try await backend.deleteMatch(id: id)
         case .profile(let profile): try await backend.saveProfile(profile)
         case .link(let link): try await backend.saveLink(link)
+        case .saveGroup(let group): try await backend.saveGroup(group)
+        case .addGroupMembers(let groupID, let userIDs):
+            try await backend.addGroupMembers(groupID: groupID, userIDs: userIDs)
+        case .removeGroupMember(let groupID, let userID):
+            try await backend.removeGroupMember(groupID: groupID, userID: userID)
         }
     }
 }

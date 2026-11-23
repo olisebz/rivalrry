@@ -343,10 +343,12 @@ enum MatchSync {
 }
 
 extension OnlineFriends {
-    /// Friends first (new friends become players), then matches, so their matches can be matched to them.
+    /// Friends first (new friends become players), then matches, so their matches can be matched to them,
+    /// then groups.
     func syncAll(me: Player, context: ModelContext) async throws {
         try await refresh(me: me, context: context)
         try await MatchSync.sync(me: me, context: context, backend: backend)
+        try await GroupSync.sync(me: me, context: context, backend: backend)
     }
 
     /// After saving, editing or answering a match.

@@ -24,6 +24,8 @@ final class Player {
     /// participant row with `player == nil` ("Deleted Player").
     @Relationship(deleteRule: .nullify, inverse: \MatchParticipant.player)
     var participations: [MatchParticipant] = []
+    /// Groups this player is a member of (Phase 4).
+    var groups: [PlayerGroup] = []
 
     init(name: String, photo: Data? = nil, colorHex: String = "6E6E73",
          isMe: Bool = false, isArchived: Bool = false, cloudUserID: String? = nil,
