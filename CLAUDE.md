@@ -50,8 +50,9 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
 - Now: Phase 3 ("Online with Friends", plan.md §8), in small steps. After each step: build the project,
   run the tests, summarize briefly, then STOP and wait for an OK.
 - No paid Apple Developer account yet (user is getting one). Until then: build everything behind the
-  `OnlineBackend` protocol (`Online/OnlineBackend.swift`) with `InMemoryBackend`; CloudKit implementation
-  and push notifications get wired in once the account is active.
+  `OnlineBackend` protocol (`Online/OnlineBackend.swift`) with `InMemoryBackend`. Everything that needs the
+  account (signing, CloudKit backend, push, S9 "Notifications", Universal Links, "Delete Account",
+  TestFlight) is Phase 3b in plan.md §8; it starts when the account is active.
 - Phase 3 steps done: 1 username + profile sync (backend-agnostic) · 2 invite friends + friend requests ·
   3 match sync, `MatchResponse`, status · 4 S6 Requests (confirm, reject, remind, deletion, changes)
 - Phase 3 decisions (agreed with the user): invite link = `rivalrry://invite/<username>` until there is a
@@ -67,18 +68,17 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   local `Match.pendingChange`); the old result counts until all opponents confirm the change, then the
   creator's sync merges it. Answers are kept per version. "Request deletion": the creator or any confirming
   opponent can ask, everyone else of them must approve, one "Decline" ends it. "Remind" works now (once per
-  24 h, stored as `remindedAt`); step 5 turns it into a push. Badge = friend requests + "To confirm" +
+  24 h, stored as `remindedAt`); Phase 3b turns it into a push. Badge = friend requests + "To confirm" +
   "Deletion requests". Test users: Max also confirms changes and approves deletions, Tom rejects/declines.
 - Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
   4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
 - Phase 2 steps (done): 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·
   4 Streaks & Highlights · 5 "Score Margin", "Activity", sport tiles · 6 S5 Quick Add ("+" button) ·
   7 Custom sports · extra: "Elo" section in Profile
-- Phase 3 steps (proposal, confirm with the user first): 1 CloudKit setup, username, profile sync ·
-  2 Invite friends (link, QR code, search) + friend requests · 3 Match sync, `MatchResponse`,
-  status `Pending`/`Confirmed`/`Rejected` · 4 S6 Requests (confirm, reject with reason, remind,
-  deletion requests) + "Requests" tab · 5 Push notifications · 6 "Link to Account" + import of old
-  matches (plan.md §6.3) · 7 Offline mode
+- Phase 3 steps: 1 username, profile sync · 2 Invite friends (link, QR code, search) + friend requests ·
+  3 Match sync, `MatchResponse`, status `Pending`/`Confirmed`/`Rejected` · 4 S6 Requests (confirm, reject
+  with reason, remind, deletion requests) + "Requests" tab · 5 "Link to Account" + import of old
+  matches (plan.md §6.3) · 6 Offline mode. Push notifications moved to Phase 3b (agreed with the user).
 - All texts in the app in English and exactly as in plan.md.
 - If something is unclear or you want to deviate from the plan: ask first.
 - Sample data for previews: design.md §9.4 (Max, Tom, Lukas, Jonas).

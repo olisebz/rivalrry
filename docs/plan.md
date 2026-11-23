@@ -261,7 +261,7 @@ Below that a segmented control with 3 tabs: `"Overview"` · `"Add Match"` · `"S
 - Button `"Save Match"`, greyed out while the result is invalid.
 - Afterwards: short confirmation (haptics + `"Match saved"`), switch to Overview.
 - Phases 1–2: status `Local`, counts immediately.
-- From Phase 3: status `Pending`, all opponents get a push notification.
+- From Phase 3: status `Pending`; from Phase 3b all opponents get a push notification.
 
 **Cancel:** If something has already been entered, the app asks `"Discard match?"`.
 
@@ -421,10 +421,10 @@ Shows who is better in this sport. At the top the record for this sport (e.g. `"
 - **Profile:** emoji/photo, name, color; from Phase 3 username
 - **Own stats:** total matches, overall win rate, best sport (highest Elo), favorite sport (most matches), biggest rival (most matches)
 - **`"Sports"`:** show/hide sports, default format per sport (e.g. Ping Pong `"Best of 3"`), create custom sports *(from Phase 2)*
-- **`"Notifications"`** *(from Phase 3)*: new matches, confirmations, reminders
+- **`"Notifications"`** *(from Phase 3b)*: new matches, confirmations, reminders
 - **`"Export Data"`** *(from Phase 5)*: CSV
 - **`"Reset All Data"`** (double confirmation)
-- From Phase 3: `"Delete Account"`
+- From Phase 3b: `"Delete Account"`
 
 ---
 
@@ -573,15 +573,30 @@ Every phase ends with an app you can actually use.
 ✅ **Done when:** A padel doubles match and a go-kart race with 4 people show up correctly in record and Elo.
 
 ### Phase 3 – Online with Friends
-- [ ] Set up CloudKit, username, profile sync
+
+> Built without a paid Apple Developer account: all online features run behind the `OnlineBackend` protocol with an in-memory backend (debug test users Max, Tom, Lukas, Jonas). Everything that needs the paid account is in Phase 3b.
+- [ ] Username, profile sync
 - [ ] Invite friends (link, QR code, search) + friend requests
 - [ ] Match sync, `MatchResponse`, status `Pending`/`Confirmed`/`Rejected`
 - [ ] S6 Requests (confirm, reject with reason, remind, deletion requests)
-- [ ] Push notifications
 - [ ] `"Link to Account"` + import of old matches (6.3)
 - [ ] Offline mode
 
-✅ **Done when:** You log a match, Max gets a push notification, confirms it, and it appears in both your stats.
+✅ **Done when:** You log a match, Max (test user) confirms it, and it appears in both your stats.
+
+### Phase 3b – Apple Developer Account
+
+> Starts as soon as the paid Apple Developer Program account is active. Independent of Phases 4 and 5.
+- [ ] Switch signing to the paid team (new bundle ID, development team for app and test target)
+- [ ] iCloud capability + CloudKit container; `CloudKitBackend` implementing `OnlineBackend` (Public Database: profiles, friend requests, matches, `MatchResponse`; only the creator can change a record)
+- [ ] Replace the in-memory backend in the app (test users only in debug builds); test with two real devices
+- [ ] Push notifications: CloudKit subscriptions + APNs (new matches with me, answers to my matches and changes, deletion requests, friend requests, `"Remind"`), permission prompt
+- [ ] S9 `"Notifications"` settings: new matches, confirmations, reminders
+- [ ] Universal Links: own domain, `apple-app-site-association`, invite link `https://<domain>/invite/<username>` instead of `rivalrry://invite/<username>`
+- [ ] S9 `"Delete Account"`
+- [ ] TestFlight build for friends
+
+✅ **Done when:** You log a match, Max gets a push notification on his iPhone, confirms it, and it appears in both your stats.
 
 ### Phase 4 – Groups & Rankings
 - [ ] Groups (S8)
