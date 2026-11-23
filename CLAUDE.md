@@ -42,72 +42,87 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
 
 ## Where we stand
 - Phase 1, Phase 2 and Phase 3 are done. 303 tests pass (`PhaseTwoDoneTests` / `PhaseThreeDoneTests`
-  check the "Done when" criteria).
-- Online features run on `InMemoryBackend` (no CloudKit yet): Phase 3b waits for the paid account.
-- Not checked visually in the simulator yet: most Phase 2 and Phase 3 screens (rendered as previews: Elo
-  table, S4 Add Friend, S6 Requests with a friend request).
+  check the "Done when" criteria of plan.md §8).
+- No paid Apple Developer account yet (the user is getting one). All online features run behind the
+  `OnlineBackend` protocol (`Online/OnlineBackend.swift`) on `InMemoryBackend`; there is no CloudKit yet.
+  Everything that needs the account (signing, `CloudKitBackend`, push notifications incl. "Remind", S9
+  "Notifications", Universal Links, "Delete Account", TestFlight) is **Phase 3b** in plan.md §8. It
+  starts only when the user says the account is active.
+- Not checked visually in the simulator yet: most Phase 2 and Phase 3 screens (rendered as previews only:
+  Elo table, S4 Add Friend, S6 Requests with a friend request). Suggest a quick simulator check to the
+  user before or during Phase 4.
+
+## Phase 3: what exists (keep these decisions)
+- Files: `Online/` = `OnlineBackend` + `InMemoryBackend`, `ProfileSync`, `OnlineFriends` (friend requests),
+  `Invite` (link + QR), `MatchRecord` (online match, `MatchResponse`, `MatchConfirmation`, `PendingChange`,
+  `DeletionRequest`), `MatchSync`, `AccountLinking`, `Outbox` (+ `PendingAction` model), `Connectivity`.
+  `Logic/Match+Online.swift` = status texts, rights, `MatchRequests` (S6 sections). Views: `Views/AddFriend/`,
+  `Views/Requests/`, `Views/FriendDetail/LinkAccountView.swift`, `Views/Profile/UsernameFormView.swift`.
+- Tabs: "Rivals", "Requests" (S6, badge), "Profile". "Rankings" (S7) comes in Phase 4.
+- Username (3–20, a–z 0–9 _) is chosen in S9; without a username nothing goes online.
+- Invite link `rivalrry://invite/<username>` (Universal Links in Phase 3b). S4 = search, own QR code,
+  "Share Invite Link", "Scan QR Code" on top, row "Add Local Friend" below. Accepted online friends become
+  local `Player`s with `cloudUserID`/`username`.
+- Status: a match is online (`Pending`) only if every participant has a `cloudUserID`, otherwise `Local`.
+  Only opponents confirm (team partners don't). `Pending`/`Rejected` don't count (`countsTowardRecord`).
+  Custom sports travel with the match. Matches with non-friends are not downloaded.
+- S6 sections: "To confirm", "Imported matches", "Deletion requests", "Friend requests",
+  "Waiting for others". Reject needs a reason. Remind once per 24 h (`remindedAt`).
+- Editing a `Confirmed` match = proposed change (`MatchRecord.proposedChange` / `Match.pendingChange`);
+  the old result counts until confirmed. Answers are kept per version. "Request deletion": creator or any
+  confirming opponent asks, everyone else of them approves, one "Decline" ends it.
+- "Link to Account" (plan.md §6.3): merges the online player into the local friend. First to link imports;
+  "Who imports?" only if both linked with old matches and nobody imported. Rejected imports go back to
+  `Local` (`localOnly = .rejectedImport`, still count for you); copies the friend imported get
+  `localOnly = .duplicate` (don't count, nothing deleted). Matches with unlinked players wait.
+- Offline: answers, deletions, profile and link changes are queued in the `Outbox`; matches and Remind wait
+  via `Match.needsUpload`. Username, search, friend requests and linking need a connection. Offline note
+  only in Requests.
+- Debug test users in `InMemoryBackend.withTestUsers()`: Max, Tom, Lukas accept your friend requests; Jonas
+  sends you one and has logged a Badminton match with you. Max confirms your matches/changes and approves
+  deletions, Tom rejects/declines ("It was 21–19, not 21–17"), Lukas never answers.
+
+## Next: Phase 4 ("Groups & Rankings", plan.md §8, S7, S8)
+- Start Phase 4 now. Before step 1, clarify with the user (ask, don't guess):
+  1. Are groups only on your phone, or shared online with the members (plan.md S8 has "Leave Group",
+     which suggests shared)? If shared: through `OnlineBackend` like friends/matches.
+  2. Rankings should include "matches between friends without you" (plan.md S7 note). That needs a new
+     `OnlineBackend` call (today `fetchMatches()` only returns matches you take part in). OK to add?
+  3. Group "emoji" (plan.md §5) → SF Symbol picker like custom sports (decision 4: no emojis)?
+  4. plan.md has no "Done when" for Phase 4; propose one and confirm it.
+- Step proposal (confirm with the user first): 1 `Group` model + S1 section "Groups" + "New Group" ·
+  2 S8 Group Detail (members, rename, "Leave Group", recent matches) · 3 S8 "Add Match" with participants
+  only from the group · 4 ranking logic (Elo per player for "All Friends"/group, sport, "Singles"/"Team",
+  "Unranked" under 3 matches, 30-day trend) + tests · 5 S7 "Rankings" tab with filters, you highlighted ·
+  6 "Best Duos" + "Your Best Partner" · 7 Phase 4 done-when test.
+- Reuse `Logic/Elo.swift` (already per sport + mode group, `Elo.table`) and the S9 Elo table views.
 
 ## Way of working
-- Next: Phase 4 ("Groups & Rankings", plan.md §8), or Phase 3b once the paid account is active; ask the
-  user which. Work in small steps. After each step: build the project,
-  run the tests, summarize briefly, then STOP and wait for an OK.
-- No paid Apple Developer account yet (user is getting one). Until then: build everything behind the
-  `OnlineBackend` protocol (`Online/OnlineBackend.swift`) with `InMemoryBackend`. Everything that needs the
-  account (signing, CloudKit backend, push, S9 "Notifications", Universal Links, "Delete Account",
-  TestFlight) is Phase 3b in plan.md §8; it starts when the account is active.
-- Phase 3 steps done: 1 username + profile sync (backend-agnostic) · 2 invite friends + friend requests ·
-  3 match sync, `MatchResponse`, status · 4 S6 Requests (confirm, reject, remind, deletion, changes) ·
-  5 "Link to Account" + import · 6 Offline mode
-- Phase 3 decisions (agreed with the user): invite link = `rivalrry://invite/<username>` until there is a
-  domain for Universal Links. "Requests" tab (S6) exists since step 2 with only "Friend requests"; step 4
-  adds the rest. S4 = online part on top (search, QR, "Share Invite Link", "Scan QR Code"), row
-  "Add Local Friend" below. Debug builds seed `InMemoryBackend` with Max/Tom/Lukas/Jonas (Jonas sends
-  you a request; the others accept yours automatically).
-- Step 3 decisions: a match is online (`Pending`) only if every participant has a `cloudUserID`; otherwise
-  `Local`. Only opponents confirm (team partners don't). Custom sports travel with the match and are added
-  on the other device. Matches with people who aren't your friends are not downloaded. Test users: Max
-  confirms, Tom rejects ("It was 21–19, not 21–17"), Lukas never answers, Jonas logged a Badminton match.
-- Step 4 decisions: editing a `Confirmed` match stores a proposed change next to it (`MatchRecord.proposedChange`,
-  local `Match.pendingChange`); the old result counts until all opponents confirm the change, then the
-  creator's sync merges it. Answers are kept per version. "Request deletion": the creator or any confirming
-  opponent can ask, everyone else of them must approve, one "Decline" ends it. "Remind" works now (once per
-  24 h, stored as `remindedAt`); Phase 3b turns it into a push. Badge = friend requests + "To confirm" +
-  "Deletion requests". Test users: Max also confirms changes and approves deletions, Tom rejects/declines.
-- Step 5 decisions (`Online/AccountLinking.swift`): linking merges the online player into the local friend.
-  Whoever links first imports right away; "Who imports?" only if both linked with old matches and nobody
-  imported yet (`LinkRecord` online, `Player.importsMatches` locally). Rejected imports go back to `Local`
-  with `localOnly = .rejectedImport` and keep counting for you. If the friend imports, your own copies get
-  `localOnly = .duplicate` and stop counting (nothing deleted). Imports show as one bulk request per friend
-  in S6 "Imported matches" ("Confirm All" / "Review"); the badge counts each friend once.
-- Step 6 decisions: queued while offline (`Online/Outbox.swift`, SwiftData `PendingAction`, sent in order,
-  refused ones dropped): Confirm, Reject, deletion requests/answers, deleting your match, profile edits;
-  matches and Remind wait via `needsUpload`. Your answers show right away. Need a connection: username,
-  search, friend requests, Link to Account. Offline note only in Requests ("You're offline. Changes are
-  sent when you're back online." + waiting count). `Connectivity` (NWPathMonitor) syncs when back online;
-  in debug the in-memory backend follows the real connection. `OnlineError.offline` = no connection.
-- Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
-  4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
-- Phase 2 steps (done): 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·
-  4 Streaks & Highlights · 5 "Score Margin", "Activity", sport tiles · 6 S5 Quick Add ("+" button) ·
-  7 Custom sports · extra: "Elo" section in Profile
-- Phase 3 steps: 1 username, profile sync · 2 Invite friends (link, QR code, search) + friend requests ·
-  3 Match sync, `MatchResponse`, status `Pending`/`Confirmed`/`Rejected` · 4 S6 Requests (confirm, reject
-  with reason, remind, deletion requests) + "Requests" tab · 5 "Link to Account" + import of old
-  matches (plan.md §6.3) · 6 Offline mode. Push notifications moved to Phase 3b (agreed with the user).
-- All texts in the app in English and exactly as in plan.md.
-- If something is unclear or you want to deviate from the plan: ask first.
+- Small steps. After each step: build the project, run the tests, summarize briefly, then STOP and wait
+  for an OK.
+- All texts in the app in English and exactly as in plan.md. Texts not in plan.md: list them in the
+  summary so the user can change them.
+- If something is unclear or you want to deviate from the plan: ask first. Write agreed decisions into
+  this file (like the Phase 2 and Phase 3 sections above).
 - Sample data for previews: design.md §9.4 (Max, Tom, Lukas, Jonas).
 - Tests run in the `rivalrry` scheme (the test target depends on the app in `project.xcproj`).
   Use a simulator as run destination (e.g. "iPhone 17 Pro"): on the user's iPhone the test target fails
   signing (it has no development team).
+- Done steps: Phase 1: 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
+  4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head.
+  Phase 2: 1 Team mode + "Together" · 2 Races · 3 Elo + "Elo History" · 4 Streaks & Highlights ·
+  5 "Score Margin", "Activity", sport tiles · 6 S5 Quick Add · 7 Custom sports · extra: "Elo" in Profile.
+  Phase 3: 1 username, profile sync · 2 invite friends + friend requests · 3 match sync, `MatchResponse`,
+  status · 4 S6 Requests · 5 "Link to Account" + import · 6 Offline mode (push moved to Phase 3b).
 
 ## Commits
 - Never commit or push yourself. After each step, give the user a copy-paste command, run from the
   repo root:
   ```sh
   git add <changed files or folders>
-  git commit -m 'Phase 3 step N: short title' -m '- what changed
+  git commit -m 'Phase 4 step N: short title' -m '- what changed
   - what changed'
   ```
+- List the changed files/folders explicitly in `git add` (no `git add .`).
 - No `Co-Authored-By` or other AI attribution lines.
 - Leave out `rivalrry.xcodeproj/project.xcproj` (the user's own signing change) unless the user says otherwise.
