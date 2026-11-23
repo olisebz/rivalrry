@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// S6 – Requests (plan.md §4 S6): "To confirm", "Deletion requests", "Friend requests",
-/// "Waiting for others". "Imported matches" follows in step 6.
+/// S6 – Requests (plan.md §4 S6): "To confirm", "Imported matches", "Deletion requests",
+/// "Friend requests", "Waiting for others".
 struct RequestsView: View {
     @Query private var players: [Player]
     @Query private var matches: [Match]
@@ -31,6 +31,9 @@ struct RequestsView: View {
             .navigationDestination(for: Match.self) { match in
                 if let me { MatchDetailView(match: match, me: me) }
             }
+            .navigationDestination(for: ImportReview.self) { review in
+                if let me { ImportReviewView(creatorID: review.creatorID, me: me) }
+            }
             .refreshable { await refresh() }
             .task { await refresh() }
             .sheet(item: $rejecting) { match in
@@ -48,8 +51,8 @@ struct RequestsView: View {
     }
 
     private func isEmpty(_ requests: MatchRequests) -> Bool {
-        requests.toConfirm.isEmpty && requests.deletionRequests.isEmpty && requests.waitingForOthers.isEmpty
-            && online.incoming.isEmpty
+        requests.toConfirm.isEmpty && requests.imported.isEmpty && requests.deletionRequests.isEmpty
+            && requests.waitingForOthers.isEmpty && online.incoming.isEmpty
     }
 
     private func list(_ requests: MatchRequests, me: Player) -> some View {
@@ -67,6 +70,42 @@ struct RequestsView: View {
                         }
                     }
                 } header: { header("To confirm") }
+            }
+            if !requests.imported.isEmpty {
+                // One bulk request per friend (plan.md §6.3 point 4).
+                Section {
+                    ForEach(requests.imported) { group in
+                        VStack(alignment: .leading, spacing: Spacing.s) {
+                            HStack(spacing: Spacing.m) {
+                                AvatarView(player: group.creator, size: 44)
+                                Text(group.title)
+                                    .font(.body)
+                                    .foregroundStyle(Color.rvTextPrimary)
+                            }
+                            HStack(spacing: Spacing.s) {
+                                Spacer()
+                                NavigationLink(value: ImportReview(creatorID: group.creator.id)) {
+                                    Text("Review")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Color.rvTextSecondary)
+                                        .fixedSize()
+                                        .frame(minHeight: 44)
+                                }
+                                Button("Confirm All") {
+                                    run { backend in
+                                        for match in group.matches {
+                                            try await MatchSync.confirm(match, me: me, backend: backend)
+                                        }
+                                    }
+                                }
+                                .buttonStyle(PillButtonStyle())
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        .padding(.vertical, Spacing.xs)
+                        .listRowBackground(Color.rvBackground)
+                    }
+                } header: { header("Imported matches") }
             }
             if !requests.deletionRequests.isEmpty {
                 Section {
@@ -176,6 +215,73 @@ struct RequestsView: View {
                 } else {
                     try await online.decline(incoming, me: me, context: context)
                 }
+                try await online.syncMatches(me: me, context: context)
+            } catch {
+                errorMessage = "Check your internet connection and try again."
+            }
+        }
+    }
+}
+
+/// Navigation value for "Review" of one friend's imported matches.
+private struct ImportReview: Hashable {
+    let creatorID: UUID
+}
+
+/// "Review": the imported matches of one friend, one by one (plan.md §6.3 point 4).
+private struct ImportReviewView: View {
+    let creatorID: UUID
+    let me: Player
+
+    @Query private var matches: [Match]
+    @Environment(\.modelContext) private var context
+    @Environment(\.onlineFriends) private var online
+    @Environment(\.dismiss) private var dismiss
+    @State private var rejecting: Match?
+    @State private var errorMessage: String?
+
+    private var group: MatchRequests.ImportGroup? {
+        MatchRequests(matches: matches, me: me).imported.first { $0.creator.id == creatorID }
+    }
+
+    var body: some View {
+        List {
+            ForEach(group?.matches ?? []) { match in
+                RequestMatchRow(match: match, me: me, subtitle: MatchDate.text(for: match.date),
+                                score: match.scoreText(for: me)) {
+                    Button("Reject") { rejecting = match }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.rvTextSecondary)
+                        .fixedSize()
+                        .frame(minHeight: 44)
+                    Button("Confirm") { confirm(match) }
+                        .buttonStyle(PillButtonStyle())
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.rvBackground)
+        .navigationTitle("Review")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: Match.self) { MatchDetailView(match: $0, me: me) }
+        .sheet(item: $rejecting) { RejectMatchView(match: $0, me: me) }
+        // All answered: back to Requests.
+        .onChange(of: group == nil) { _, isDone in if isDone { dismiss() } }
+        .alert("Something Went Wrong", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private func confirm(_ match: Match) {
+        Task {
+            do {
+                try await MatchSync.confirm(match, me: me, backend: online.backend)
                 try await online.syncMatches(me: me, context: context)
             } catch {
                 errorMessage = "Check your internet connection and try again."

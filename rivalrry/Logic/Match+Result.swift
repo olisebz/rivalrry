@@ -4,8 +4,11 @@ extension Match {
     /// Scoring type, taking a custom sport into account.
     var scoringType: ScoringType { sport.scoringType }
 
-    /// Unconfirmed matches never count (plan.md §0).
-    var countsTowardRecord: Bool { status == .local || status == .confirmed }
+    /// Unconfirmed matches never count (plan.md §0). Local matches the friend imported themselves don't
+    /// count either, so nothing counts twice (plan.md §6.3).
+    var countsTowardRecord: Bool {
+        (status == .local && localOnly != .duplicate) || status == .confirmed
+    }
 
     func includes(_ player: Player) -> Bool {
         participants.contains { $0.player?.id == player.id }

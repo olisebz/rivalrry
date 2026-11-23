@@ -98,6 +98,8 @@ enum MatchSync {
 
     static func sync(me: Player, context: ModelContext, backend: any OnlineBackend) async throws {
         guard let myUserID = me.cloudUserID else { return }
+        // 0. Links of your friends decide which old matches you import (plan.md §6.3).
+        try await AccountLinking.syncLinks(me: me, context: context, backend: backend)
         let local = try context.fetch(FetchDescriptor<Match>())
 
         // 1. Upload your new and edited matches, changes and reminders.
@@ -155,6 +157,13 @@ enum MatchSync {
                 match.pendingChange = change
                 match.deletionRequest = deletion
                 apply(confirmation, to: match)
+                // A rejected import goes back to you only and keeps counting there (plan.md §6.3 point 5).
+                if record.isImported, confirmation.status == .rejected {
+                    try await backend.deleteMatch(id: record.id)
+                    match.status = .local
+                    match.localOnly = .rejectedImport
+                    deletedIDs.insert(record.id)
+                }
                 continue
             }
 

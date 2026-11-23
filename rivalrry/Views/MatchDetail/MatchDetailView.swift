@@ -120,7 +120,13 @@ struct MatchDetailView: View {
     /// or deletion request and "Remind". Neutral colors: red is only for deleting (decision 5).
     @ViewBuilder
     private var statusBanner: some View {
-        if let text = match.statusText {
+        if let note = match.localNote {
+            // After "Link to Account" (plan.md §6.3).
+            statusLine(note, symbol: match.localOnly == nil ? "clock" : "iphone")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Spacing.m)
+                .background(Color.rvSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        } else if let text = match.statusText {
             VStack(alignment: .leading, spacing: Spacing.s) {
                 statusLine(text, symbol: statusSymbol)
                 if let changeText = match.changeText {

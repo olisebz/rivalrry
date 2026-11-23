@@ -15,6 +15,9 @@ final class Player {
     var cloudUserID: String?
     /// Online username (Phase 3, plan.md §6.1). Only set for "me" and linked friends.
     var username: String?
+    /// After "Link to Account" (plan.md §6.3): `true` = you import your old matches with this friend,
+    /// `false` = the friend imports theirs, `nil` = not decided (or never a local friend).
+    var importsMatches: Bool?
     var createdAt: Date = Date()
 
     /// All matches this player took part in. Deleting a player keeps the

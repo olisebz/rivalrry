@@ -54,7 +54,8 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   account (signing, CloudKit backend, push, S9 "Notifications", Universal Links, "Delete Account",
   TestFlight) is Phase 3b in plan.md §8; it starts when the account is active.
 - Phase 3 steps done: 1 username + profile sync (backend-agnostic) · 2 invite friends + friend requests ·
-  3 match sync, `MatchResponse`, status · 4 S6 Requests (confirm, reject, remind, deletion, changes)
+  3 match sync, `MatchResponse`, status · 4 S6 Requests (confirm, reject, remind, deletion, changes) ·
+  5 "Link to Account" + import
 - Phase 3 decisions (agreed with the user): invite link = `rivalrry://invite/<username>` until there is a
   domain for Universal Links. "Requests" tab (S6) exists since step 2 with only "Friend requests"; step 4
   adds the rest. S4 = online part on top (search, QR, "Share Invite Link", "Scan QR Code"), row
@@ -70,6 +71,12 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   opponent can ask, everyone else of them must approve, one "Decline" ends it. "Remind" works now (once per
   24 h, stored as `remindedAt`); Phase 3b turns it into a push. Badge = friend requests + "To confirm" +
   "Deletion requests". Test users: Max also confirms changes and approves deletions, Tom rejects/declines.
+- Step 5 decisions (`Online/AccountLinking.swift`): linking merges the online player into the local friend.
+  Whoever links first imports right away; "Who imports?" only if both linked with old matches and nobody
+  imported yet (`LinkRecord` online, `Player.importsMatches` locally). Rejected imports go back to `Local`
+  with `localOnly = .rejectedImport` and keep counting for you. If the friend imports, your own copies get
+  `localOnly = .duplicate` and stop counting (nothing deleted). Imports show as one bulk request per friend
+  in S6 "Imported matches" ("Confirm All" / "Review"); the badge counts each friend once.
 - Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
   4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
 - Phase 2 steps (done): 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·

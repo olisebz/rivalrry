@@ -23,6 +23,18 @@ struct FriendRequest: Identifiable, Equatable, Sendable {
     var createdAt: Date = Date()
 }
 
+/// "Link to Account" (plan.md §6.3): you linked your local friend to this user. Belongs to you.
+/// Tells the friend how many old matches you have with them and who imports.
+struct LinkRecord: Equatable, Sendable {
+    var userID: String
+    var friendUserID: String
+    /// Your local matches with the friend at the time of linking.
+    var localMatchCount: Int
+    /// Who imports the old matches; `nil` = nobody yet.
+    var importerUserID: String?
+    var linkedAt: Date = Date()
+}
+
 enum OnlineError: Error, Equatable {
     /// Someone else already has this username.
     case usernameTaken
@@ -65,6 +77,11 @@ protocol OnlineBackend: AnyObject {
     /// Saves your answer. It replaces your earlier answer to the same version (confirm/reject),
     /// or your earlier deletion answer to the same match.
     func saveResponse(_ response: MatchResponse) async throws
+
+    /// Links you made or that were made to you.
+    func fetchLinks() async throws -> [LinkRecord]
+    /// Creates or replaces your link to a friend.
+    func saveLink(_ link: LinkRecord) async throws
 }
 
 /// Backend that keeps everything in memory. Used for tests and previews, and in the app
@@ -75,6 +92,7 @@ final class InMemoryBackend: OnlineBackend {
     private(set) var requests: [FriendRequest] = []
     private(set) var matches: [UUID: MatchRecord] = [:]
     private(set) var responses: [MatchResponse] = []
+    private(set) var links: [LinkRecord] = []
     /// Users that accept your requests right away (debug test users).
     private let autoAccepting: Set<String>
     /// How users answer your matches right away (debug test users): kind and reason.
@@ -84,7 +102,7 @@ final class InMemoryBackend: OnlineBackend {
     init(userID: String? = "local-user", profiles: [OnlineProfile] = [],
          requests: [FriendRequest] = [], autoAccepting: Set<String> = [],
          matches: [MatchRecord] = [], responses: [MatchResponse] = [],
-         autoResponses: [String: (MatchResponse.Kind, String?)] = [:]) {
+         autoResponses: [String: (MatchResponse.Kind, String?)] = [:], links: [LinkRecord] = []) {
         self.userID = userID
         for profile in profiles { self.profiles[profile.userID] = profile }
         self.requests = requests
@@ -92,6 +110,7 @@ final class InMemoryBackend: OnlineBackend {
         for match in matches { self.matches[match.id] = match }
         self.responses = responses
         self.autoResponses = autoResponses
+        self.links = links
     }
 
     func currentUserID() async throws -> String {
@@ -193,6 +212,23 @@ final class InMemoryBackend: OnlineBackend {
                                 kind: kind == .confirm ? .approveDelete : .declineDelete,
                                 createdAt: response.createdAt.addingTimeInterval(1)))
         }
+    }
+
+    func fetchLinks() async throws -> [LinkRecord] {
+        let me = try await currentUserID()
+        return links.filter { $0.userID == me || $0.friendUserID == me }
+    }
+
+    func saveLink(_ link: LinkRecord) async throws {
+        guard link.userID == (try await currentUserID()) else { throw OnlineError.notAllowed }
+        links.removeAll { $0.userID == link.userID && $0.friendUserID == link.friendUserID }
+        links.append(link)
+    }
+
+    /// A link from another user, as if it came from their device (tests).
+    func receive(_ link: LinkRecord) {
+        links.removeAll { $0.userID == link.userID && $0.friendUserID == link.friendUserID }
+        links.append(link)
     }
 
     /// An answer from another user, as if it came from their device (tests and previews).

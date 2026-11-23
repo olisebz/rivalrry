@@ -7,6 +7,14 @@ enum Side: String, Codable, CaseIterable {
     var opponent: Side { self == .a ? .b : .a }
 }
 
+/// Why a local match stays "Local only" after linking (plan.md §6.3).
+enum LocalOnlyReason: String, Codable {
+    /// The friend rejected the import: still counts for you, not in shared stats.
+    case rejectedImport
+    /// The friend imported their copy of your matches: kept, but doesn't count (no double counting).
+    case duplicate
+}
+
 enum MatchStatus: String, Codable, CaseIterable {
     /// Entered locally, counts immediately. From Phase 3 only matches with local players
     /// (friends without the app) stay `local`.
@@ -52,6 +60,8 @@ final class Match {
     var pendingChangeData: Data?
     /// An open "Request deletion" (`DeletionRequest`, JSON).
     var deletionRequestData: Data?
+    /// "Local only" after linking (plan.md §6.3).
+    var localOnly: LocalOnlyReason?
 
     @Relationship(deleteRule: .cascade, inverse: \MatchParticipant.match)
     var participants: [MatchParticipant] = []

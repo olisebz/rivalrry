@@ -174,19 +174,41 @@ extension Match {
 
 /// The S6 sections built from matches (plan.md §4 S6).
 struct MatchRequests {
+    /// One bulk request per friend who imported old matches (plan.md §6.3 point 4).
+    struct ImportGroup: Identifiable {
+        let creator: Player
+        let matches: [Match]
+        var id: UUID { creator.id }
+
+        /// "Alex imported 12 matches with you"
+        var title: String {
+            "\(creator.shortName) imported \(matches.count) \(matches.count == 1 ? "match" : "matches") with you"
+        }
+    }
+
     var toConfirm: [Match] = []
+    var imported: [ImportGroup] = []
     var deletionRequests: [Match] = []
     var waitingForOthers: [Match] = []
 
     init(matches: [Match], me: Player) {
         let sorted = matches.sorted { $0.date > $1.date }
-        toConfirm = sorted.filter { $0.needsConfirmation(by: me) }
+        let open = sorted.filter { $0.needsConfirmation(by: me) }
+        // Imported old matches come as one request per friend, not one by one.
+        let importedOpen = open.filter { $0.isImported && $0.status == .pending }
+        toConfirm = open.filter { !($0.isImported && $0.status == .pending) }
+        let byCreator = importedOpen.compactMap { match in match.createdBy.map { (creator: $0, match: match) } }
+        imported = Dictionary(grouping: byCreator) { $0.creator.id }
+            .values
+            .compactMap { group in group.first.map { ImportGroup(creator: $0.creator, matches: group.map(\.match)) } }
+            .sorted { $0.creator.name.localizedStandardCompare($1.creator.name) == .orderedAscending }
         deletionRequests = sorted.filter { $0.needsDeletionAnswer(by: me) }
         waitingForOthers = sorted.filter { $0.createdBy?.id == me.id && $0.isWaitingForOthers }
     }
 
-    /// Things you need to handle, for the badge (plan.md §4 S6). "Waiting for others" doesn't count.
-    var actionCount: Int { toConfirm.count + deletionRequests.count }
+    /// Things you need to handle, for the badge (plan.md §4 S6). An import counts once;
+    /// "Waiting for others" doesn't count.
+    var actionCount: Int { toConfirm.count + imported.count + deletionRequests.count }
 }
 
 extension MatchRecord {

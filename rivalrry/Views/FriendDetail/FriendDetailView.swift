@@ -13,6 +13,7 @@ struct FriendDetailView: View {
     @State private var tab: DetailTab = .overview
     @State private var isAddingMatch = false
     @State private var isEditingFriend = false
+    @State private var isLinking = false
     @State private var isConfirmingDelete = false
     @State private var deleteOnDisappear = false
     @State private var savedCount = 0
@@ -108,6 +109,9 @@ struct FriendDetailView: View {
         .sheet(isPresented: $isEditingFriend) {
             FriendFormView(friend: friend)
         }
+        .sheet(isPresented: $isLinking) {
+            LinkAccountView(friend: friend)
+        }
         .confirmationDialog("Delete \(friend.shortName)?", isPresented: $isConfirmingDelete,
                             titleVisibility: .visible) {
             Button("Delete Friend", role: .destructive) {
@@ -129,6 +133,10 @@ struct FriendDetailView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button("Edit Friend") { isEditingFriend = true }
+                // Local friends only, once you are online yourself (plan.md §4 S4, §6.3).
+                if friend.cloudUserID == nil, me?.cloudUserID != nil {
+                    Button("Link to Account") { isLinking = true }
+                }
                 Button(friend.isArchived ? "Restore" : "Archive") {
                     friend.isArchived.toggle()
                     if friend.isArchived { dismiss() }
