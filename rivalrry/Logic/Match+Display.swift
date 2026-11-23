@@ -161,13 +161,7 @@ extension Rivalry {
 
     /// Sports you played with `friend`, most matches first (S2 filter chips).
     static func sportsPlayed(of me: Player, with friend: Player, in allMatches: [Match]) -> [Sport] {
-        var counts: [Sport: Int] = [:]
-        for match in matches(of: me, with: friend, in: allMatches) {
-            counts[match.sport, default: 0] += 1
-        }
-        return counts.sorted {
-            $0.value != $1.value ? $0.value > $1.value : $0.key.displayName < $1.key.displayName
-        }.map(\.key)
+        Sport.byCount(in: matches(of: me, with: friend, in: allMatches))
     }
 
     /// "Delete Friend": deletes matches no other friends took part in.
@@ -193,5 +187,18 @@ extension Match {
             .map { $0.player?.shortName ?? "Deleted Player" }
             .sorted()
         return "vs " + names.joined(separator: " & ")
+    }
+}
+
+extension Sport {
+    /// The sports of these matches, most played first, then by name (sport chips in "See all").
+    static func byCount(in matches: [Match]) -> [Sport] {
+        var counts: [Sport: Int] = [:]
+        for match in matches {
+            counts[match.sport, default: 0] += 1
+        }
+        return counts.sorted {
+            $0.value != $1.value ? $0.value > $1.value : $0.key.displayName < $1.key.displayName
+        }.map(\.key)
     }
 }

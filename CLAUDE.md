@@ -105,6 +105,9 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   `Online/GroupSync.swift`. Any member renames and adds/removes members. `memberUserIDs` = online members as
   last known (also members who aren't your friends); `members` = local players incl. local friends.
   Groups made before a username go online on the next sync; local friends linked later join online then.
+- S8 (agreed): members who aren't your friends = one grey line "and 2 others" below the member rows.
+  Group matches (S8 "Recent Matches", later the group ranking) = every match where all participants are
+  members, wherever it was logged (no group ID on matches).
 - Reuse `Logic/Elo.swift` (already per sport + mode group, `Elo.table`) and the S9 Elo table views.
 
 ## Way of working
@@ -124,7 +127,7 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   5 "Score Margin", "Activity", sport tiles · 6 S5 Quick Add · 7 Custom sports · extra: "Elo" in Profile.
   Phase 3: 1 username, profile sync · 2 invite friends + friend requests · 3 match sync, `MatchResponse`,
   status · 4 S6 Requests · 5 "Link to Account" + import · 6 Offline mode (push moved to Phase 3b).
-  Phase 4: 1 `PlayerGroup` model + group sync · 2 S1 "Groups" + "New Group".
+  Phase 4: 1 `PlayerGroup` model + group sync · 2 S1 "Groups" + "New Group" · 3 S8 Group Detail.
 
 ## Commits
 - Never commit or push yourself. After each step, give the user a copy-paste command, run from the

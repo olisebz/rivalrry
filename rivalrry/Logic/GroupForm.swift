@@ -9,6 +9,15 @@ struct GroupForm: Equatable {
 
     static let nameLimit = 30
 
+    init() {}
+
+    /// "Edit Group": the current name, symbol and members (without you).
+    init(group: PlayerGroup) {
+        name = group.name
+        symbolName = group.symbolName
+        memberIDs = Set(group.members.filter { !$0.isMe }.map(\.id))
+    }
+
     var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /// Why the form can't be saved, `nil` if it can.
@@ -19,14 +28,24 @@ struct GroupForm: Equatable {
         return nil
     }
 
-    /// Friends you can add: not archived, by name.
-    static func candidates(in players: [Player]) -> [Player] {
-        players.filter { !$0.isMe && !$0.isArchived }
+    /// Friends you can pick: not archived, by name. When editing, archived members stay in the list.
+    static func candidates(in players: [Player], group: PlayerGroup? = nil) -> [Player] {
+        let memberIDs = Set(group?.members.map(\.id) ?? [])
+        return players.filter { !$0.isMe && (!$0.isArchived || memberIDs.contains($0.id)) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
-    func members(from players: [Player]) -> [Player] {
-        Self.candidates(in: players).filter { memberIDs.contains($0.id) }
+    func members(from players: [Player], group: PlayerGroup? = nil) -> [Player] {
+        Self.candidates(in: players, group: group).filter { memberIDs.contains($0.id) }
+    }
+
+    /// Who "Save" adds to and removes from `group`.
+    func memberChanges(for group: PlayerGroup, players: [Player]) -> (added: [Player], removed: [Player]) {
+        let current = Set(group.members.map(\.id))
+        let added = members(from: players, group: group).filter { !current.contains($0.id) }
+        let removed = group.members.filter { !$0.isMe && !memberIDs.contains($0.id) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        return (added, removed)
     }
 }
 
@@ -40,6 +59,38 @@ extension PlayerGroup {
     /// "4 members"
     var memberCountText: String {
         memberCount == 1 ? "1 member" : "\(memberCount) members"
+    }
+
+    /// Online members who aren't your friends: shown as "and 2 others" (S8).
+    var otherMemberCount: Int { memberCount - members.count }
+
+    /// "and 1 other", "and 2 others"; `nil` if every member is known.
+    var otherMembersText: String? {
+        switch otherMemberCount {
+        case ...0: nil
+        case 1: "and 1 other"
+        default: "and \(otherMemberCount) others"
+        }
+    }
+
+    /// S8 member rows: you first, then by name.
+    var sortedMembers: [Player] {
+        members.sorted { lhs, rhs in
+            if lhs.isMe != rhs.isMe { return lhs.isMe }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
+
+    /// The group's matches (agreed with the user): every match where all participants are members,
+    /// wherever it was logged. Newest first.
+    func matches(in matches: [Match]) -> [Match] {
+        let memberIDs = Set(members.map(\.id))
+        return matches
+            .filter { match in
+                match.participants.count >= 2
+                    && match.participants.allSatisfy { $0.player.map { memberIDs.contains($0.id) } ?? false }
+            }
+            .sorted { $0.date > $1.date }
     }
 
     /// Groups on S1, by name.

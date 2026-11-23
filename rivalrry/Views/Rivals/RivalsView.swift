@@ -33,6 +33,9 @@ struct RivalsView: View {
             .navigationDestination(for: Player.self) { friend in
                 FriendDetailView(friend: friend)
             }
+            .navigationDestination(for: PlayerGroup.self) { group in
+                GroupDetailView(group: group)
+            }
             .sheet(isPresented: $isAddingFriend) {
                 AddFriendView()
             }
@@ -102,6 +105,7 @@ struct RivalsView: View {
         Section {
             ForEach(PlayerGroup.sorted(groups)) { group in
                 GroupCard(group: group)
+                    .background(NavigationLink(value: group) { EmptyView() }.opacity(0))
                     .listRowInsets(EdgeInsets(top: 0, leading: Spacing.m, bottom: 0, trailing: Spacing.m))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)

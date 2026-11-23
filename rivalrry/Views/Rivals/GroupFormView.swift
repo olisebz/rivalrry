@@ -1,19 +1,28 @@
 import SwiftUI
 import SwiftData
 
-/// "New Group" from S1 (plan.md §4 S8): name, symbol instead of emoji (decision 4), members.
+/// "New Group" from S1 and "Edit Group" in S8 (plan.md §4 S8): name, symbol instead of emoji
+/// (decision 4), members. Editing renames the group and adds or removes members.
 struct GroupFormView: View {
+    /// `nil` = new group.
+    let group: PlayerGroup?
+
     @Query private var players: [Player]
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.onlineBackend) private var backend
 
-    @State private var form = GroupForm()
+    @State private var form: GroupForm
     @State private var isSaving = false
     @FocusState private var nameFocused: Bool
 
+    init(group: PlayerGroup? = nil) {
+        self.group = group
+        _form = State(initialValue: group.map(GroupForm.init(group:)) ?? GroupForm())
+    }
+
     private var me: Player? { players.first(where: \.isMe) }
-    private var candidates: [Player] { GroupForm.candidates(in: players) }
+    private var candidates: [Player] { GroupForm.candidates(in: players, group: group) }
 
     var body: some View {
         NavigationStack {
@@ -31,20 +40,20 @@ struct GroupFormView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(Color.rvBackground)
             .safeAreaInset(edge: .bottom) {
-                Button("Add", action: save)
+                Button(group == nil ? "Add" : "Save", action: save)
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(form.issue != nil || isSaving)
                     .padding(Spacing.m)
                     .background(Color.rvBackground)
             }
-            .navigationTitle("New Group")
+            .navigationTitle(group == nil ? "New Group" : "Edit Group")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .onAppear { nameFocused = true }
+            .onAppear { if group == nil { nameFocused = true } }
         }
         .tint(Color.rvAccent)
     }
@@ -120,10 +129,24 @@ struct GroupFormView: View {
         guard form.issue == nil, let me else { return }
         isSaving = true
         Task {
-            // Offline it's queued in the Outbox; the group shows here right away.
-            try? await GroupSync.create(name: form.trimmedName, symbolName: form.symbolName,
-                                        friends: form.members(from: players), me: me,
-                                        context: context, backend: backend)
+            // Offline it's queued in the Outbox; the changes show here right away.
+            if let group {
+                if group.name != form.trimmedName || group.symbolName != form.symbolName {
+                    try? await GroupSync.rename(group, name: form.trimmedName, symbolName: form.symbolName,
+                                                me: me, context: context, backend: backend)
+                }
+                let changes = form.memberChanges(for: group, players: players)
+                if !changes.added.isEmpty {
+                    try? await GroupSync.add(changes.added, to: group, context: context, backend: backend)
+                }
+                for player in changes.removed {
+                    try? await GroupSync.remove(player, from: group, context: context, backend: backend)
+                }
+            } else {
+                try? await GroupSync.create(name: form.trimmedName, symbolName: form.symbolName,
+                                            friends: form.members(from: players), me: me,
+                                            context: context, backend: backend)
+            }
             dismiss()
         }
     }
