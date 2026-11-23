@@ -5,9 +5,11 @@ import SwiftData
 struct RivalsView: View {
     @Query(sort: \Player.createdAt) private var players: [Player]
     @Query private var matches: [Match]
+    @Query private var groups: [PlayerGroup]
     @AppStorage("rivalsSort") private var sort: RivalsSort = .recentlyPlayed
     @State private var isAddingFriend = false
     @State private var isQuickAdding = false
+    @State private var isAddingGroup = false
 
     private var me: Player? { players.first(where: \.isMe) }
     private var friends: [Player] { players.filter { !$0.isMe } }
@@ -33,6 +35,9 @@ struct RivalsView: View {
             }
             .sheet(isPresented: $isAddingFriend) {
                 AddFriendView()
+            }
+            .sheet(isPresented: $isAddingGroup) {
+                GroupFormView()
             }
             .overlay(alignment: .bottomTrailing) { quickAddButton }
             .sheet(isPresented: $isQuickAdding) {
@@ -71,6 +76,7 @@ struct RivalsView: View {
                     row(summary, swipeTitle: "Archive", setArchived: true)
                 }
             }
+            groupSection
             if !archived.isEmpty {
                 Section {
                     ForEach(archived) { summary in
@@ -89,6 +95,48 @@ struct RivalsView: View {
         .listRowSpacing(Spacing.s)
         // Room for the floating "+" button.
         .contentMargins(.bottom, 88, for: .scrollContent)
+    }
+
+    /// "Groups" below the friends (plan.md §4 S1, Phase 4), with "New Group" at the end.
+    private var groupSection: some View {
+        Section {
+            ForEach(PlayerGroup.sorted(groups)) { group in
+                GroupCard(group: group)
+                    .listRowInsets(EdgeInsets(top: 0, leading: Spacing.m, bottom: 0, trailing: Spacing.m))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
+            newGroupButton
+                .listRowInsets(EdgeInsets(top: 0, leading: Spacing.m, bottom: 0, trailing: Spacing.m))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+        } header: {
+            Text("Groups")
+                .font(.headline)
+                .foregroundStyle(Color.rvTextSecondary)
+                .textCase(nil)
+        }
+    }
+
+    private var newGroupButton: some View {
+        Button {
+            isAddingGroup = true
+        } label: {
+            HStack(spacing: Spacing.m) {
+                Image(systemName: "plus")
+                    .font(.headline)
+                    .frame(width: 40, height: 40)
+                    .background(Color.rvBackground, in: Circle())
+                Text("New Group")
+                    .font(.headline)
+                Spacer()
+            }
+            .foregroundStyle(Color.rvTextPrimary)
+            .padding(Spacing.m)
+            .background(Color.rvSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func row(_ summary: FriendSummary, swipeTitle: String, setArchived: Bool) -> some View {

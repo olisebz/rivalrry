@@ -11,7 +11,7 @@ final class PlayerGroup {
     var id: UUID = UUID()
     var name: String = ""
     /// SF Symbol name, same picker as custom sports. Replaces the emoji from plan.md.
-    var symbolName: String = "person.3"
+    var symbolName: String = "trophy"
     var createdAt: Date = Date()
     /// `true` once the group was uploaded. Groups made before you chose a username stay on your phone
     /// until then.
@@ -24,7 +24,7 @@ final class PlayerGroup {
     @Relationship(deleteRule: .nullify, inverse: \Player.groups)
     var members: [Player] = []
 
-    init(name: String, symbolName: String = "person.3", members: [Player] = [], createdAt: Date = Date()) {
+    init(name: String, symbolName: String = CustomSport.symbols[0], members: [Player] = [], createdAt: Date = Date()) {
         self.name = name
         self.symbolName = symbolName
         self.members = members

@@ -36,8 +36,6 @@ struct CustomSportFormView: View {
         form.issue(otherNames: customSports.filter { $0.id != sport?.id }.map(\.name))
     }
 
-    private let symbolColumns = Array(repeating: GridItem(.flexible(), spacing: Spacing.s), count: 5)
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -104,30 +102,7 @@ struct CustomSportFormView: View {
     private var symbolPicker: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             label("Symbol")
-            LazyVGrid(columns: symbolColumns, spacing: Spacing.s) {
-                ForEach(CustomSport.symbols, id: \.self) { symbol in
-                    let isSelected = form.symbolName == symbol
-                    Button {
-                        form.symbolName = symbol
-                    } label: {
-                        Image(systemName: symbol)
-                            .font(.system(size: 22))
-                            .foregroundStyle(isSelected ? Color.rvAccent : Color.rvTextPrimary)
-                            .frame(maxWidth: .infinity, minHeight: 52)
-                            .background(isSelected ? Color.rvAccentSoft : Color.rvSurface,
-                                        in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
-                            .overlay {
-                                if isSelected {
-                                    RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                                        .strokeBorder(Color.rvAccent, lineWidth: 2)
-                                }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(symbol)
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
-                }
-            }
+            SymbolPicker(selection: $form.symbolName)
         }
     }
 

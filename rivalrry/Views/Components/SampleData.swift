@@ -36,6 +36,9 @@ enum SampleData {
         addSeries(in: context, me: me, friend: lukas, startingDaysAgo: 7, [(.pingPong, 3, 3)])
         addSeries(in: context, me: me, friend: jonas, startingDaysAgo: 22, [(.tennis, 8, 2)])
         addGoKartRace(in: context, players: [me, jonas], daysAgo: 21)
+
+        context.insert(PlayerGroup(name: "Padel every Thursday", symbolName: "figure.handball",
+                                   members: [me, max, tom, lukas]))
     }
 
     private static func addSeries(in context: ModelContext, me: Player, friend: Player, startingDaysAgo: Int,
