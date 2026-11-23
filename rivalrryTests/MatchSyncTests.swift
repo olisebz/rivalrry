@@ -211,7 +211,8 @@ struct MatchSyncTests {
         #expect(match.side(of: world.max) == .a)
         #expect(match.side(of: world.me) == .b)
         #expect(match.orderedSets.map(\.scoreA) == [21, 21])
-        #expect(!match.canEditOrDelete)
+        #expect(!match.canEdit(by: world.me))
+        #expect(!match.canDelete(by: world.me))
         // Downloading again doesn't create a copy.
         try await sync(world)
         #expect(try world.context.fetch(FetchDescriptor<Match>()).count == 1)
@@ -296,15 +297,18 @@ struct MatchSyncTests {
 
     @Test func editAndDeleteRights() throws {
         let world = try world()
+        let me = world.me
         let local = logBadminton(world, against: world.local)
-        #expect(local.canEditOrDelete)
+        #expect(local.canEdit(by: me) && local.canDelete(by: me))
         let online = logBadminton(world, against: world.max)
-        #expect(online.canEditOrDelete)
+        #expect(online.canEdit(by: me) && online.canDelete(by: me))
         online.status = .rejected
-        #expect(online.canEditOrDelete)
-        // Confirmed matches: changes and deletion requests follow in step 4.
+        #expect(online.canEdit(by: me) && online.canDelete(by: me))
+        // Confirmed: editing becomes a change request, deleting a deletion request (step 4).
         online.status = .confirmed
-        #expect(!online.canEditOrDelete)
+        #expect(online.canEdit(by: me))
+        #expect(!online.canDelete(by: me))
+        #expect(online.canRequestDeletion(by: me))
     }
 
     @Test func creatorDeletesOnline() async throws {

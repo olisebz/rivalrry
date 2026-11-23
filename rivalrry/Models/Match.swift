@@ -46,6 +46,12 @@ final class Match {
     /// The opponent who rejected the current version, with their reason.
     var rejectedByUserID: String?
     var rejectionReason: String?
+    /// Last "Remind" (your own matches).
+    var remindedAt: Date?
+    /// A change to this confirmed match waiting for the opponents (`PendingChange`, JSON).
+    var pendingChangeData: Data?
+    /// An open "Request deletion" (`DeletionRequest`, JSON).
+    var deletionRequestData: Data?
 
     @Relationship(deleteRule: .cascade, inverse: \MatchParticipant.match)
     var participants: [MatchParticipant] = []

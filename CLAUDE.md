@@ -53,7 +53,7 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   `OnlineBackend` protocol (`Online/OnlineBackend.swift`) with `InMemoryBackend`; CloudKit implementation
   and push notifications get wired in once the account is active.
 - Phase 3 steps done: 1 username + profile sync (backend-agnostic) · 2 invite friends + friend requests ·
-  3 match sync, `MatchResponse`, status
+  3 match sync, `MatchResponse`, status · 4 S6 Requests (confirm, reject, remind, deletion, changes)
 - Phase 3 decisions (agreed with the user): invite link = `rivalrry://invite/<username>` until there is a
   domain for Universal Links. "Requests" tab (S6) exists since step 2 with only "Friend requests"; step 4
   adds the rest. S4 = online part on top (search, QR, "Share Invite Link", "Scan QR Code"), row
@@ -63,8 +63,12 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   `Local`. Only opponents confirm (team partners don't). Custom sports travel with the match and are added
   on the other device. Matches with people who aren't your friends are not downloaded. Test users: Max
   confirms, Tom rejects ("It was 21–19, not 21–17"), Lukas never answers, Jonas logged a Badminton match.
-  Moved to step 4: S6 Confirm/Reject/Remind, deletion requests, editing a `Confirmed` match (until then
-  Edit/Delete are hidden for confirmed matches and for other people's matches).
+- Step 4 decisions: editing a `Confirmed` match stores a proposed change next to it (`MatchRecord.proposedChange`,
+  local `Match.pendingChange`); the old result counts until all opponents confirm the change, then the
+  creator's sync merges it. Answers are kept per version. "Request deletion": the creator or any confirming
+  opponent can ask, everyone else of them must approve, one "Decline" ends it. "Remind" works now (once per
+  24 h, stored as `remindedAt`); step 5 turns it into a push. Badge = friend requests + "To confirm" +
+  "Deletion requests". Test users: Max also confirms changes and approves deletions, Tom rejects/declines.
 - Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
   4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
 - Phase 2 steps (done): 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·

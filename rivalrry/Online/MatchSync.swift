@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// Uploads your online matches and downloads matches others logged with you (Phase 3 step 3).
+/// Uploads your online matches and downloads matches others logged with you (Phase 3 steps 3–4).
 /// A match is online when every participant, you included, has an online account; matches with
 /// local players stay `Local` and only count for you (plan.md §6.2).
 enum MatchSync {
@@ -18,14 +18,80 @@ enum MatchSync {
         match.needsUpload = true
     }
 
-    /// Called after the creator edited an online match: the version went up, so everyone confirms again.
+    /// Called after the creator edited a `Pending` or `Rejected` match: the version went up, so everyone
+    /// confirms again. Confirmed matches go through `proposeChange` instead.
     static func prepareEdited(_ match: Match) {
-        guard match.status != .local else { return }
+        guard match.status == .pending || match.status == .rejected else { return }
         match.status = .pending
         match.needsUpload = true
         match.confirmedUserIDs = []
         match.rejectedByUserID = nil
         match.rejectionReason = nil
+    }
+
+    // MARK: - Actions
+
+    /// "Edit" on a confirmed match (plan.md §4 S3): the change becomes a new request, the old result
+    /// keeps counting until all opponents confirm it.
+    static func proposeChange(_ draft: MatchDraft, to match: Match, context: ModelContext) {
+        guard match.status == .confirmed, let base = record(from: match) else { return }
+        let version = max(match.version, match.pendingChange?.record.version ?? 0) + 1
+        // Write the draft into the match to get the new record, then put the confirmed result back.
+        draft.apply(to: match, context: context)
+        let changed = record(from: match)
+        replaceContent(of: match, with: base, players: players(of: match), context: context)
+        guard var change = changed else { return }
+        change.version = version
+        change.proposedChanges = []
+        match.pendingChange = PendingChange(record: change,
+                                            confirmation: MatchConfirmation(record: change, responses: []))
+        match.needsUpload = true
+    }
+
+    /// "Remind" (plan.md §4 S3); the push follows in step 5.
+    static func remind(_ match: Match, me: Player, now: Date = Date()) {
+        guard match.canRemind(by: me, now: now) else { return }
+        match.remindedAt = now
+        match.needsUpload = true
+    }
+
+    /// "Confirm" in S6: answers the pending match or the pending change.
+    static func confirm(_ match: Match, me: Player, backend: any OnlineBackend) async throws {
+        try await answer(match, me: me, kind: .confirm, reason: nil, backend: backend)
+    }
+
+    /// "Reject" in S6; the reason is required (plan.md §4 S6).
+    static func reject(_ match: Match, reason: String, me: Player, backend: any OnlineBackend) async throws {
+        let reason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !reason.isEmpty else { return }
+        try await answer(match, me: me, kind: .reject, reason: reason, backend: backend)
+    }
+
+    private static func answer(_ match: Match, me: Player, kind: MatchResponse.Kind, reason: String?,
+                               backend: any OnlineBackend) async throws {
+        guard let userID = me.cloudUserID, match.needsConfirmation(by: me) else { return }
+        let version = match.status == .pending ? match.version : (match.pendingChange?.record.version ?? match.version)
+        try await backend.saveResponse(MatchResponse(matchID: match.id, matchVersion: version, userID: userID,
+                                                     kind: kind, reason: reason))
+    }
+
+    /// "Request deletion" for a confirmed match.
+    static func requestDeletion(_ match: Match, me: Player, backend: any OnlineBackend) async throws {
+        guard let userID = me.cloudUserID, match.canRequestDeletion(by: me) else { return }
+        try await backend.saveResponse(MatchResponse(matchID: match.id, matchVersion: match.version,
+                                                     userID: userID, kind: .requestDelete))
+    }
+
+    /// "Approve" / "Decline" in S6 "Deletion requests".
+    static func answerDeletion(_ match: Match, approve: Bool, me: Player, backend: any OnlineBackend) async throws {
+        guard let userID = me.cloudUserID, match.needsDeletionAnswer(by: me) else { return }
+        try await backend.saveResponse(MatchResponse(matchID: match.id, matchVersion: match.version,
+                                                     userID: userID, kind: approve ? .approveDelete : .declineDelete))
+    }
+
+    /// Deletes your online match on the server too (allowed while `Pending` or `Rejected`).
+    static func deleteOnline(matchID: UUID, backend: any OnlineBackend) async throws {
+        try await backend.deleteMatch(id: matchID)
     }
 
     // MARK: - Sync
@@ -34,67 +100,109 @@ enum MatchSync {
         guard let myUserID = me.cloudUserID else { return }
         let local = try context.fetch(FetchDescriptor<Match>())
 
-        // 1. Upload your new and edited matches.
-        for match in local where match.needsUpload && match.createdBy?.isMe == true {
-            guard let record = record(from: match) else { continue }
-            try await backend.saveMatch(record)
-            match.needsUpload = false
-        }
+        // 1. Upload your new and edited matches, changes and reminders.
+        try await upload(local, backend: backend)
 
         // 2. Download all matches with you and their responses.
         let records = try await backend.fetchMatches()
         let responses = try await backend.fetchResponses(matchIDs: records.map(\.id))
-        let players = try context.fetch(FetchDescriptor<Player>())
         var playersByUserID: [String: Player] = [:]
-        for player in players {
+        for player in try context.fetch(FetchDescriptor<Player>()) {
             guard let userID = player.cloudUserID else { continue }
             // Your own player wins over a stale friend entry with the same ID.
             if playersByUserID[userID] == nil || player.isMe { playersByUserID[userID] = player }
         }
         var localByID = Dictionary(local.map { ($0.id, $0) }) { first, _ in first }
+        var deletedIDs: Set<UUID> = []
 
         for record in records {
-            if record.creatorUserID == myUserID {
-                // Your own match: the content here is the truth, only the answers come from outside.
-                if let match = localByID[record.id], !match.needsUpload {
-                    apply(MatchConfirmation(record: record, responses: responses), to: match)
+            let isMine = record.creatorUserID == myUserID
+            let deletion = DeletionRequest(record: record, responses: responses)
+
+            // Everyone agreed to delete: gone for everyone; the creator removes it online.
+            if deletion?.isApproved == true {
+                if isMine { try await backend.deleteMatch(id: record.id) }
+                if let match = localByID[record.id] {
+                    context.delete(match)
+                    localByID[record.id] = nil
                 }
+                deletedIDs.insert(record.id)
                 continue
             }
+
+            // A confirmed change replaces the old result; an open one is kept next to it.
+            var effective = record
+            var change: PendingChange?
+            if let proposed = record.proposedChange {
+                let confirmation = MatchConfirmation(record: proposed, responses: responses)
+                if confirmation.status == .confirmed {
+                    effective = proposed
+                    effective.proposedChanges = []
+                } else {
+                    change = PendingChange(record: proposed, confirmation: confirmation)
+                }
+            }
+            let confirmation = MatchConfirmation(record: effective, responses: responses)
+
+            if isMine {
+                // Your own match: the content here is the truth, only the answers come from outside.
+                guard let match = localByID[record.id], !match.needsUpload else { continue }
+                if effective.version != record.version {
+                    // Your change was confirmed: take it over and upload the merged record.
+                    replaceContent(of: match, with: effective, players: playersByUserID, context: context)
+                    match.needsUpload = true
+                }
+                match.pendingChange = change
+                match.deletionRequest = deletion
+                apply(confirmation, to: match)
+                continue
+            }
+
             // Only matches with friends: everyone in it must be known here.
-            guard record.userIDs.allSatisfy({ playersByUserID[$0] != nil }) else { continue }
+            guard effective.userIDs.allSatisfy({ playersByUserID[$0] != nil }) else { continue }
             let match: Match
             if let existing = localByID[record.id] {
                 match = existing
-                if existing.version < record.version {
-                    replaceContent(of: existing, with: record, players: playersByUserID, context: context)
+                if existing.version < effective.version {
+                    replaceContent(of: existing, with: effective, players: playersByUserID, context: context)
                 }
             } else {
-                match = Match(sportType: record.sportType)
+                match = Match(sportType: effective.sportType)
                 match.id = record.id
                 context.insert(match)
                 localByID[record.id] = match
-                replaceContent(of: match, with: record, players: playersByUserID, context: context)
+                replaceContent(of: match, with: effective, players: playersByUserID, context: context)
             }
-            apply(MatchConfirmation(record: record, responses: responses), to: match)
+            match.pendingChange = change
+            match.deletionRequest = deletion
+            match.remindedAt = record.remindedAt
+            apply(confirmation, to: match)
         }
 
-        // 3. Matches others deleted disappear here too.
+        // 3. Merged changes go up right away.
+        try await upload(Array(localByID.values), backend: backend)
+
+        // 4. Matches others deleted disappear here too.
         let onlineIDs = Set(records.map(\.id))
-        for match in local where match.status != .local && match.createdBy?.isMe != true
-            && !onlineIDs.contains(match.id) {
+        for match in local where !deletedIDs.contains(match.id) && match.status != .local
+            && match.createdBy?.isMe != true && !onlineIDs.contains(match.id) {
             context.delete(match)
         }
     }
 
-    /// Deletes your online match on the server too (allowed while `Pending` or `Rejected`).
-    static func deleteOnline(matchID: UUID, backend: any OnlineBackend) async throws {
-        try await backend.deleteMatch(id: matchID)
+    private static func upload(_ matches: [Match], backend: any OnlineBackend) async throws {
+        for match in matches where match.needsUpload && match.createdBy?.isMe == true {
+            guard var record = record(from: match) else { continue }
+            record.proposedChange = match.pendingChange?.record
+            try await backend.saveMatch(record)
+            match.needsUpload = false
+        }
     }
 
     // MARK: - Converting
 
     /// The online record of a local match, or `nil` if a player has no online account.
+    /// The proposed change is added by `upload`.
     static func record(from match: Match) -> MatchRecord? {
         guard let creator = match.createdBy?.cloudUserID, canGoOnline(match) else { return nil }
         let participants = match.participants.compactMap { participant -> MatchRecord.Participant? in
@@ -123,7 +231,7 @@ enum MatchSync {
                 .init(winnerSide: $0.winnerSide, method: $0.method, endRound: $0.endRound,
                       totalRounds: $0.totalRounds, roundScores: $0.roundScores)
             },
-            createdAt: match.createdAt, updatedAt: match.updatedAt)
+            createdAt: match.createdAt, updatedAt: match.updatedAt, remindedAt: match.remindedAt)
     }
 
     static func apply(_ confirmation: MatchConfirmation, to match: Match) {
@@ -133,7 +241,14 @@ enum MatchSync {
         match.rejectionReason = confirmation.rejectionReason
     }
 
-    /// Overwrites a match someone else created with the downloaded version.
+    /// The players of a match by user ID.
+    private static func players(of match: Match) -> [String: Player] {
+        Dictionary(match.participants.compactMap { participant in
+            participant.player.flatMap { player in player.cloudUserID.map { ($0, player) } }
+        }) { first, _ in first }
+    }
+
+    /// Overwrites the content of a match with a record (downloaded match, merged or undone change).
     private static func replaceContent(of match: Match, with record: MatchRecord,
                                        players: [String: Player], context: ModelContext) {
         for participant in match.participants { context.delete(participant) }
@@ -196,7 +311,7 @@ extension OnlineFriends {
         try await MatchSync.sync(me: me, context: context, backend: backend)
     }
 
-    /// After saving or editing a match.
+    /// After saving, editing or answering a match.
     func syncMatches(me: Player, context: ModelContext) async throws {
         try await MatchSync.sync(me: me, context: context, backend: backend)
     }

@@ -17,6 +17,8 @@ struct MatchDetailView: View {
     @State private var isEdited = false
     @State private var isConfirmingDelete = false
     @State private var deleteOnDisappear = false
+    @State private var isConfirmingDeletionRequest = false
+    @State private var errorMessage: String?
 
     // SwiftData doesn't keep the order of participants: pick you on side A and the friend on side B.
     private var sideA: MatchParticipant? {
@@ -43,8 +45,14 @@ struct MatchDetailView: View {
                             .foregroundStyle(Color.rvTextPrimary)
                     }
                 }
-                if match.canEditOrDelete {
+                if match.canDelete(by: me) {
                     Button("Delete Match", role: .destructive) { isConfirmingDelete = true }
+                        .font(.headline)
+                        .foregroundStyle(Color.rvDestructive)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                } else if match.canRequestDeletion(by: me) {
+                    // Confirmed matches: only if everyone agrees (plan.md §4 S3).
+                    Button("Request deletion", role: .destructive) { isConfirmingDeletionRequest = true }
                         .font(.headline)
                         .foregroundStyle(Color.rvDestructive)
                         .frame(maxWidth: .infinity, minHeight: 44)
@@ -56,7 +64,7 @@ struct MatchDetailView: View {
         .navigationTitle(match.sport.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if match.canEditOrDelete {
+            if match.canEdit(by: me) {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit") { isEditing = true }
                         .disabled(!canEdit)
@@ -71,6 +79,20 @@ struct MatchDetailView: View {
             }
         } message: {
             Text("This can't be undone.")
+        }
+        .confirmationDialog("Request deletion?", isPresented: $isConfirmingDeletionRequest,
+                            titleVisibility: .visible) {
+            Button("Request deletion", role: .destructive) { run { try await MatchSync.requestDeletion(match, me: me, backend: $0) } }
+        } message: {
+            Text("The match is deleted once everyone agrees.")
+        }
+        .alert("Something Went Wrong", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
         }
         .onDisappear {
             // Delete after leaving the screen, so it never shows a deleted match.
@@ -94,22 +116,72 @@ struct MatchDetailView: View {
 
     // MARK: - Status
 
-    /// "Waiting for Max to confirm", "Confirmed", "Rejected by Max: …" (plan.md §4 S3). Neutral colors:
-    /// red is only for deleting (decision 5).
+    /// "Waiting for Max to confirm", "Confirmed", "Rejected by Max: …" (plan.md §4 S3), plus an open change
+    /// or deletion request and "Remind". Neutral colors: red is only for deleting (decision 5).
     @ViewBuilder
     private var statusBanner: some View {
         if let text = match.statusText {
-            Label {
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.rvTextPrimary)
-            } icon: {
-                Image(systemName: statusSymbol)
-                    .foregroundStyle(Color.rvTextSecondary)
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                statusLine(text, symbol: statusSymbol)
+                if let changeText = match.changeText {
+                    statusLine(changeText, symbol: "pencil")
+                    if let score = match.changeScoreText(for: me) {
+                        Text("New result: \(score)")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(Color.rvTextSecondary)
+                            .padding(.leading, 28)
+                    }
+                }
+                if let deletionText = match.deletionText(me: me) {
+                    statusLine(deletionText, symbol: "trash")
+                }
+                remindRow
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.m)
             .background(Color.rvSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        }
+    }
+
+    private func statusLine(_ text: String, symbol: String) -> some View {
+        Label {
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(Color.rvTextPrimary)
+        } icon: {
+            Image(systemName: symbol)
+                .foregroundStyle(Color.rvTextSecondary)
+        }
+    }
+
+    /// "Remind" once every 24 h while your match waits (plan.md §4 S3).
+    @ViewBuilder
+    private var remindRow: some View {
+        if match.createdBy?.id == me.id, match.isWaitingForOthers {
+            if match.canRemind(by: me) {
+                Button("Remind") {
+                    MatchSync.remind(match, me: me)
+                    run { _ in try await online.syncMatches(me: me, context: context) }
+                }
+                .buttonStyle(PillButtonStyle())
+            } else if let remindedAt = match.remindedAt {
+                Text(RemindText.text(for: remindedAt))
+                    .font(.subheadline)
+                    .foregroundStyle(Color.rvTextSecondary)
+            }
+        }
+    }
+
+    /// Runs an online action, then syncs; shows an alert if it fails.
+    private func run(_ action: @escaping (any OnlineBackend) async throws -> Void) {
+        let backend = online.backend
+        Task {
+            do {
+                try await action(backend)
+                try await online.syncMatches(me: me, context: context)
+            } catch {
+                errorMessage = "Check your internet connection and try again."
+            }
         }
     }
 
@@ -463,7 +535,12 @@ struct MatchDetailView: View {
                                initialDraft: MatchDraft(match: match, friend: friend),
                                onCancel: { isEditing = false }) { draft in
                     guard draft.isValid else { return }
-                    draft.apply(to: match, context: context)
+                    if match.status == .confirmed {
+                        // The old result keeps counting until the change is confirmed (plan.md §4 S3).
+                        MatchSync.proposeChange(draft, to: match, context: context)
+                    } else {
+                        draft.apply(to: match, context: context)
+                    }
                     Task { try? await online.syncMatches(me: me, context: context) }
                     isEdited = false
                     isEditing = false

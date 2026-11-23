@@ -62,7 +62,8 @@ protocol OnlineBackend: AnyObject {
     func deleteMatch(id: UUID) async throws
     /// All responses to these matches, from everyone.
     func fetchResponses(matchIDs: [UUID]) async throws -> [MatchResponse]
-    /// Saves your answer to a match; it replaces your earlier answer to the same match.
+    /// Saves your answer. It replaces your earlier answer to the same version (confirm/reject),
+    /// or your earlier deletion answer to the same match.
     func saveResponse(_ response: MatchResponse) async throws
 }
 
@@ -155,10 +156,17 @@ final class InMemoryBackend: OnlineBackend {
             throw OnlineError.notAllowed
         }
         matches[record.id] = record
-        for opponent in record.opponentUserIDs {
-            guard let (kind, reason) = autoResponses[opponent] else { continue }
-            store(MatchResponse(matchID: record.id, matchVersion: record.version, userID: opponent,
-                                kind: kind, reason: reason))
+        // Test users answer the current version and a proposed change, once each.
+        for version in [record] + record.proposedChanges {
+            for opponent in version.opponentUserIDs {
+                guard let (kind, reason) = autoResponses[opponent],
+                      !responses.contains(where: {
+                          $0.matchID == record.id && $0.userID == opponent && $0.matchVersion == version.version
+                              && !$0.kind.isDeletion
+                      }) else { continue }
+                store(MatchResponse(matchID: record.id, matchVersion: version.version, userID: opponent,
+                                    kind: kind, reason: reason))
+            }
         }
     }
 
@@ -177,11 +185,28 @@ final class InMemoryBackend: OnlineBackend {
     func saveResponse(_ response: MatchResponse) async throws {
         guard response.userID == (try await currentUserID()) else { throw OnlineError.notAllowed }
         store(response)
+        // Test users answer a deletion request: those who confirm approve, those who reject decline.
+        guard response.kind == .requestDelete, let record = matches[response.matchID] else { return }
+        for userID in record.deletionUserIDs where userID != response.userID {
+            guard let (kind, _) = autoResponses[userID] else { continue }
+            store(MatchResponse(matchID: record.id, matchVersion: record.version, userID: userID,
+                                kind: kind == .confirm ? .approveDelete : .declineDelete,
+                                createdAt: response.createdAt.addingTimeInterval(1)))
+        }
     }
 
-    /// One answer per user and match.
+    /// An answer from another user, as if it came from their device (tests and previews).
+    func receive(_ response: MatchResponse) {
+        store(response)
+    }
+
+    /// One answer per user and version (confirm/reject), one deletion answer per user and match.
     private func store(_ response: MatchResponse) {
-        responses.removeAll { $0.matchID == response.matchID && $0.userID == response.userID }
+        responses.removeAll {
+            $0.matchID == response.matchID && $0.userID == response.userID
+                && $0.kind.isDeletion == response.kind.isDeletion
+                && (response.kind.isDeletion || $0.matchVersion == response.matchVersion)
+        }
         responses.append(response)
     }
 }
@@ -201,8 +226,8 @@ extension InMemoryBackend {
 
     /// Debug only: the sample players (design.md §9.4) as online users, so search, requests and match
     /// status can be tried in the simulator. Max, Tom and Lukas accept requests right away; Jonas sends
-    /// you one and has logged a Badminton match with you. Your matches: Max confirms, Tom rejects,
-    /// Lukas never answers.
+    /// you one and has logged a Badminton match with you. Your matches and changes: Max confirms, Tom
+    /// rejects, Lukas never answers. Deletion requests: Max approves, Tom declines.
     static func withTestUsers(userID: String = "local-user") -> InMemoryBackend {
         let users = [
             OnlineProfile(userID: "test-max", username: "max_keller", name: "Max Keller", colorHex: "4F6BED"),

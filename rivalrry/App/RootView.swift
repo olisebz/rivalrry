@@ -5,11 +5,18 @@ import SwiftData
 struct RootView: View {
     @AppStorage(SportSettings.onboardedKey) private var isOnboarded = false
     @Query private var players: [Player]
+    @Query private var matches: [Match]
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.onlineFriends) private var online
     /// Username from an opened invite link (`rivalrry://invite/<username>`).
     @State private var invitation: Invitation?
+
+    /// Friend requests plus matches and deletion requests you need to answer.
+    private var badgeCount: Int {
+        let matchActions = players.first(where: \.isMe).map { MatchRequests(matches: matches, me: $0).actionCount } ?? 0
+        return online.incoming.count + matchActions
+    }
 
     var body: some View {
         if isOnboarded {
@@ -19,7 +26,7 @@ struct RootView: View {
                 RequestsView()
                     .tabItem { Label("Requests", systemImage: "tray") }
                     // Badge = things you need to handle (plan.md §4 S6).
-                    .badge(online.incoming.count)
+                    .badge(badgeCount)
                 ProfileView()
                     .tabItem { Label("Profile", systemImage: "person.crop.circle") }
             }
