@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// Keeps your own `Player` and your online profile in sync (Phase 3 step 1).
 enum ProfileSync {
@@ -21,9 +22,15 @@ enum ProfileSync {
     }
 
     /// Uploads name, color and photo after "Edit Profile". Does nothing before a username is chosen.
-    static func push(_ me: Player, backend: any OnlineBackend) async throws {
+    /// With a `context` it goes through the `Outbox`, so it's sent later when offline.
+    static func push(_ me: Player, backend: any OnlineBackend, context: ModelContext? = nil) async throws {
         guard let userID = me.cloudUserID, let username = me.username else { return }
-        try await backend.saveProfile(profile(of: me, userID: userID, username: username))
+        let profile = profile(of: me, userID: userID, username: username)
+        if let context {
+            try await Outbox.send(.profile(profile), backend: backend, context: context)
+        } else {
+            try await backend.saveProfile(profile)
+        }
     }
 
     private static func profile(of me: Player, userID: String, username: String) -> OnlineProfile {

@@ -26,6 +26,9 @@ extension Match {
         }
     }
 
+    /// User IDs of `confirmingParticipants`.
+    var confirmingUserIDs: [String] { confirmingParticipants.compactMap { $0.player?.cloudUserID } }
+
     /// Opponents who haven't confirmed the current version yet.
     var waitingParticipants: [MatchParticipant] {
         confirmingParticipants.filter { !confirmedUserIDs.contains($0.player?.cloudUserID ?? "") }

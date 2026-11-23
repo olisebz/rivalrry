@@ -123,6 +123,31 @@ struct MatchConfirmation: Equatable, Codable {
     var rejectedByUserID: String?
     var rejectionReason: String?
 
+    /// The state stored on a local match.
+    init(_ match: Match) {
+        status = match.status
+        confirmedUserIDs = match.confirmedUserIDs
+        rejectedByUserID = match.rejectedByUserID
+        rejectionReason = match.rejectionReason
+    }
+
+    /// Your own answer, before the next sync brings the real state (offline).
+    mutating func apply(_ kind: MatchResponse.Kind, by userID: String, reason: String?, opponents: [String]) {
+        switch kind {
+        case .confirm:
+            if !confirmedUserIDs.contains(userID) { confirmedUserIDs.append(userID) }
+            if status == .pending, !opponents.isEmpty, Set(opponents).isSubset(of: confirmedUserIDs) {
+                status = .confirmed
+            }
+        case .reject:
+            status = .rejected
+            rejectedByUserID = userID
+            rejectionReason = reason
+        case .requestDelete, .approveDelete, .declineDelete:
+            break
+        }
+    }
+
     /// `Confirmed` once every opponent confirmed the version, `Rejected` as soon as one rejected it,
     /// otherwise `Pending`. Answers to other versions don't count.
     init(record: MatchRecord, responses: [MatchResponse]) {
@@ -163,6 +188,13 @@ struct DeletionRequest: Equatable, Codable {
     var approvedUserIDs: [String]
 
     var isApproved: Bool { Set(approverUserIDs).isSubset(of: approvedUserIDs) }
+
+    init(requestedBy: String, requestedAt: Date, approverUserIDs: [String], approvedUserIDs: [String]) {
+        self.requestedBy = requestedBy
+        self.requestedAt = requestedAt
+        self.approverUserIDs = approverUserIDs
+        self.approvedUserIDs = approvedUserIDs
+    }
 
     /// The open request, or `nil` if there is none or someone declined it.
     init?(record: MatchRecord, responses: [MatchResponse]) {

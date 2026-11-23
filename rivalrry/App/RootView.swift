@@ -9,6 +9,7 @@ struct RootView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.onlineFriends) private var online
+    @Environment(\.connectivity) private var connectivity
     /// Username from an opened invite link (`rivalrry://invite/<username>`).
     @State private var invitation: Invitation?
 
@@ -34,8 +35,14 @@ struct RootView: View {
             .tint(Color.rvAccent)
             .onOpenURL { url in invitation = Invite.username(from: url).map(Invitation.init) }
             .sheet(item: $invitation) { InviteSheet(username: $0.username) }
-            .task(id: scenePhase) {
-                guard scenePhase == .active, let me = players.first(where: \.isMe) else { return }
+            // Sync when the app becomes active and when the connection comes back (plan.md §6.1 "Offline").
+            .task(id: SyncTrigger(isActive: scenePhase == .active, isOnline: connectivity.isOnline)) {
+                #if DEBUG
+                // The in-memory test backend follows the real connection, so offline can be tried out.
+                (online.backend as? InMemoryBackend)?.isOffline = !connectivity.isOnline
+                #endif
+                guard scenePhase == .active, connectivity.isOnline,
+                      let me = players.first(where: \.isMe) else { return }
                 try? await online.syncAll(me: me, context: context)
             }
         } else {
@@ -54,6 +61,11 @@ struct RootView: View {
     RootView()
         .modelContainer(SampleData.container(filled: false))
         .defaultAppStorage(onboardedDefaults)
+}
+
+private struct SyncTrigger: Equatable {
+    let isActive: Bool
+    let isOnline: Bool
 }
 
 /// The username from an opened invite link, as a sheet item.

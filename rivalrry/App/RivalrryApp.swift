@@ -28,6 +28,6 @@ enum AppSchema {
     /// but listing them keeps the schema explicit.
     static let models: [any PersistentModel.Type] = [
         Player.self, CustomSport.self, Match.self, MatchParticipant.self,
-        SetScore.self, PenaltyShot.self, FightDetail.self,
+        SetScore.self, PenaltyShot.self, FightDetail.self, PendingAction.self,
     ]
 }

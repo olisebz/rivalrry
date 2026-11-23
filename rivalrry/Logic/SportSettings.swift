@@ -111,6 +111,7 @@ extension Rivalry {
         for match in try context.fetch(FetchDescriptor<Match>()) { context.delete(match) }
         for player in try context.fetch(FetchDescriptor<Player>()) { context.delete(player) }
         for sport in try context.fetch(FetchDescriptor<CustomSport>()) { context.delete(sport) }
+        for pending in try context.fetch(FetchDescriptor<PendingAction>()) { context.delete(pending) }
         try context.save()
     }
 }

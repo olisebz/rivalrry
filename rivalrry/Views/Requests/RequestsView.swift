@@ -8,6 +8,8 @@ struct RequestsView: View {
     @Query private var matches: [Match]
     @Environment(\.modelContext) private var context
     @Environment(\.onlineFriends) private var online
+    @Environment(\.connectivity) private var connectivity
+    @Query private var pendingActions: [PendingAction]
 
     @State private var rejecting: Match?
     @State private var errorMessage: String?
@@ -25,6 +27,9 @@ struct RequestsView: View {
                             .containerRelativeFrame(.vertical)
                     }
                 }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !connectivity.isOnline { offlineNote }
             }
             .background(Color.rvBackground)
             .navigationTitle("Requests")
@@ -48,6 +53,28 @@ struct RequestsView: View {
                 Text(errorMessage ?? "")
             }
         }
+    }
+
+    /// Offline note (Phase 3 decision: only here, with the number of waiting changes).
+    private var offlineNote: some View {
+        let waiting = pendingActions.count + matches.filter(\.isWaitingForUpload).count
+        return VStack(alignment: .leading, spacing: Spacing.xs) {
+            Label("You're offline. Changes are sent when you're back online.", systemImage: "wifi.slash")
+                .font(.subheadline)
+                .foregroundStyle(Color.rvTextPrimary)
+            if waiting > 0 {
+                Text(waiting == 1 ? "1 change waiting" : "\(waiting) changes waiting")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.rvTextSecondary)
+                    .padding(.leading, 28)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.m)
+        .background(Color.rvSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .padding(.horizontal, Spacing.m)
+        .padding(.bottom, Spacing.s)
+        .background(Color.rvBackground)
     }
 
     private func isEmpty(_ requests: MatchRequests) -> Bool {

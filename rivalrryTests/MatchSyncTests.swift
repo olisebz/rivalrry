@@ -315,7 +315,7 @@ struct MatchSyncTests {
         let world = try world()
         let match = logBadminton(world, against: world.max)
         try await sync(world)
-        try await MatchSync.deleteOnline(matchID: match.id, backend: world.backend)
+        try await MatchSync.deleteOnline(matchID: match.id, backend: world.backend, context: world.context)
         #expect(world.backend.matches.isEmpty)
     }
 

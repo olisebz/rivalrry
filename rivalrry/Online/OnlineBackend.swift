@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 /// Public profile of a user, as stored online (plan.md §6.1: username, name, photo).
-struct OnlineProfile: Equatable, Sendable {
+struct OnlineProfile: Equatable, Codable, Sendable {
     /// iCloud user record ID.
     var userID: String
     var username: String
@@ -25,7 +25,7 @@ struct FriendRequest: Identifiable, Equatable, Sendable {
 
 /// "Link to Account" (plan.md §6.3): you linked your local friend to this user. Belongs to you.
 /// Tells the friend how many old matches you have with them and who imports.
-struct LinkRecord: Equatable, Sendable {
+struct LinkRecord: Equatable, Codable, Sendable {
     var userID: String
     var friendUserID: String
     /// Your local matches with the friend at the time of linking.
@@ -44,6 +44,8 @@ enum OnlineError: Error, Equatable {
     case requestNotFound
     /// Only the creator can change or delete a match (plan.md §6.1).
     case notAllowed
+    /// No connection to the server. Queued actions are sent later (`Outbox`, plan.md §6.1 "Offline").
+    case offline
 }
 
 /// Everything the app needs from the server. CloudKit (Public Database) will implement this
@@ -93,6 +95,8 @@ final class InMemoryBackend: OnlineBackend {
     private(set) var matches: [UUID: MatchRecord] = [:]
     private(set) var responses: [MatchResponse] = []
     private(set) var links: [LinkRecord] = []
+    /// Simulates a lost connection: every call throws `.offline`.
+    var isOffline = false
     /// Users that accept your requests right away (debug test users).
     private let autoAccepting: Set<String>
     /// How users answer your matches right away (debug test users): kind and reason.
@@ -114,15 +118,18 @@ final class InMemoryBackend: OnlineBackend {
     }
 
     func currentUserID() async throws -> String {
+        try checkConnection()
         guard let userID else { throw OnlineError.noAccount }
         return userID
     }
 
     func isUsernameAvailable(_ username: String, for userID: String) async throws -> Bool {
-        !profiles.values.contains { $0.username == username && $0.userID != userID }
+        try checkConnection()
+        return !profiles.values.contains { $0.username == username && $0.userID != userID }
     }
 
     func saveProfile(_ profile: OnlineProfile) async throws {
+        try checkConnection()
         guard try await isUsernameAvailable(profile.username, for: profile.userID) else {
             throw OnlineError.usernameTaken
         }
@@ -130,14 +137,17 @@ final class InMemoryBackend: OnlineBackend {
     }
 
     func fetchProfile(userID: String) async throws -> OnlineProfile? {
-        profiles[userID]
+        try checkConnection()
+        return profiles[userID]
     }
 
     func fetchProfile(username: String) async throws -> OnlineProfile? {
-        profiles.values.first { $0.username == username }
+        try checkConnection()
+        return profiles.values.first { $0.username == username }
     }
 
     func searchProfiles(prefix: String) async throws -> [OnlineProfile] {
+        try checkConnection()
         let me = try await currentUserID()
         return profiles.values
             .filter { $0.userID != me && $0.username.hasPrefix(prefix) }
@@ -145,11 +155,13 @@ final class InMemoryBackend: OnlineBackend {
     }
 
     func friendRequests() async throws -> [FriendRequest] {
+        try checkConnection()
         let me = try await currentUserID()
         return requests.filter { $0.fromUserID == me || $0.toUserID == me }
     }
 
     func sendFriendRequest(to userID: String) async throws -> FriendRequest {
+        try checkConnection()
         var request = FriendRequest(fromUserID: try await currentUserID(), toUserID: userID)
         if autoAccepting.contains(userID) { request.status = .accepted }
         requests.append(request)
@@ -157,6 +169,7 @@ final class InMemoryBackend: OnlineBackend {
     }
 
     func respond(to requestID: UUID, accept: Bool) async throws {
+        try checkConnection()
         let me = try await currentUserID()
         guard let index = requests.firstIndex(where: {
             $0.id == requestID && $0.toUserID == me && $0.status == .pending
@@ -165,11 +178,13 @@ final class InMemoryBackend: OnlineBackend {
     }
 
     func fetchMatches() async throws -> [MatchRecord] {
+        try checkConnection()
         let me = try await currentUserID()
         return matches.values.filter { $0.userIDs.contains(me) }.sorted { $0.date > $1.date }
     }
 
     func saveMatch(_ record: MatchRecord) async throws {
+        try checkConnection()
         let me = try await currentUserID()
         guard record.creatorUserID == me, matches[record.id].map({ $0.creatorUserID == me }) ?? true else {
             throw OnlineError.notAllowed
@@ -190,6 +205,7 @@ final class InMemoryBackend: OnlineBackend {
     }
 
     func deleteMatch(id: UUID) async throws {
+        try checkConnection()
         let me = try await currentUserID()
         guard let record = matches[id] else { return }
         guard record.creatorUserID == me else { throw OnlineError.notAllowed }
@@ -198,10 +214,12 @@ final class InMemoryBackend: OnlineBackend {
     }
 
     func fetchResponses(matchIDs: [UUID]) async throws -> [MatchResponse] {
-        responses.filter { matchIDs.contains($0.matchID) }
+        try checkConnection()
+        return responses.filter { matchIDs.contains($0.matchID) }
     }
 
     func saveResponse(_ response: MatchResponse) async throws {
+        try checkConnection()
         guard response.userID == (try await currentUserID()) else { throw OnlineError.notAllowed }
         store(response)
         // Test users answer a deletion request: those who confirm approve, those who reject decline.
@@ -215,11 +233,13 @@ final class InMemoryBackend: OnlineBackend {
     }
 
     func fetchLinks() async throws -> [LinkRecord] {
+        try checkConnection()
         let me = try await currentUserID()
         return links.filter { $0.userID == me || $0.friendUserID == me }
     }
 
     func saveLink(_ link: LinkRecord) async throws {
+        try checkConnection()
         guard link.userID == (try await currentUserID()) else { throw OnlineError.notAllowed }
         links.removeAll { $0.userID == link.userID && $0.friendUserID == link.friendUserID }
         links.append(link)
@@ -229,6 +249,10 @@ final class InMemoryBackend: OnlineBackend {
     func receive(_ link: LinkRecord) {
         links.removeAll { $0.userID == link.userID && $0.friendUserID == link.friendUserID }
         links.append(link)
+    }
+
+    private func checkConnection() throws {
+        if isOffline { throw OnlineError.offline }
     }
 
     /// An answer from another user, as if it came from their device (tests and previews).

@@ -55,6 +55,9 @@ enum MatchSync {
         match.needsUpload = true
     }
 
+    // Answers go through the `Outbox` (sent later when offline) and show here right away;
+    // the next sync replaces them with what's online.
+
     /// "Confirm" in S6: answers the pending match or the pending change.
     static func confirm(_ match: Match, me: Player, backend: any OnlineBackend) async throws {
         try await answer(match, me: me, kind: .confirm, reason: nil, backend: backend)
@@ -69,36 +72,62 @@ enum MatchSync {
 
     private static func answer(_ match: Match, me: Player, kind: MatchResponse.Kind, reason: String?,
                                backend: any OnlineBackend) async throws {
-        guard let userID = me.cloudUserID, match.needsConfirmation(by: me) else { return }
-        let version = match.status == .pending ? match.version : (match.pendingChange?.record.version ?? match.version)
-        try await backend.saveResponse(MatchResponse(matchID: match.id, matchVersion: version, userID: userID,
-                                                     kind: kind, reason: reason))
+        guard let userID = me.cloudUserID, let context = match.modelContext,
+              match.needsConfirmation(by: me) else { return }
+        let answersChange = match.status != .pending
+        let version = answersChange ? (match.pendingChange?.record.version ?? match.version) : match.version
+        try await Outbox.send(.response(MatchResponse(matchID: match.id, matchVersion: version, userID: userID,
+                                                      kind: kind, reason: reason)),
+                              backend: backend, context: context)
+
+        if answersChange, var change = match.pendingChange {
+            change.confirmation.apply(kind, by: userID, reason: reason, opponents: match.confirmingUserIDs)
+            match.pendingChange = change
+        } else {
+            var confirmation = MatchConfirmation(match)
+            confirmation.apply(kind, by: userID, reason: reason, opponents: match.confirmingUserIDs)
+            apply(confirmation, to: match)
+        }
     }
 
     /// "Request deletion" for a confirmed match.
     static func requestDeletion(_ match: Match, me: Player, backend: any OnlineBackend) async throws {
-        guard let userID = me.cloudUserID, match.canRequestDeletion(by: me) else { return }
-        try await backend.saveResponse(MatchResponse(matchID: match.id, matchVersion: match.version,
-                                                     userID: userID, kind: .requestDelete))
+        guard let userID = me.cloudUserID, let context = match.modelContext,
+              match.canRequestDeletion(by: me) else { return }
+        let request = MatchResponse(matchID: match.id, matchVersion: match.version, userID: userID, kind: .requestDelete)
+        try await Outbox.send(.response(request), backend: backend, context: context)
+        let everyone = ([match.createdBy?.cloudUserID].compactMap { $0 } + match.confirmingUserIDs)
+        match.deletionRequest = DeletionRequest(requestedBy: userID, requestedAt: request.createdAt,
+                                                approverUserIDs: everyone.filter { $0 != userID }, approvedUserIDs: [])
     }
 
     /// "Approve" / "Decline" in S6 "Deletion requests".
     static func answerDeletion(_ match: Match, approve: Bool, me: Player, backend: any OnlineBackend) async throws {
-        guard let userID = me.cloudUserID, match.needsDeletionAnswer(by: me) else { return }
-        try await backend.saveResponse(MatchResponse(matchID: match.id, matchVersion: match.version,
-                                                     userID: userID, kind: approve ? .approveDelete : .declineDelete))
+        guard let userID = me.cloudUserID, let context = match.modelContext,
+              match.needsDeletionAnswer(by: me) else { return }
+        try await Outbox.send(.response(MatchResponse(matchID: match.id, matchVersion: match.version, userID: userID,
+                                                      kind: approve ? .approveDelete : .declineDelete)),
+                              backend: backend, context: context)
+        if approve, var request = match.deletionRequest {
+            request.approvedUserIDs.append(userID)
+            match.deletionRequest = request
+        } else {
+            match.deletionRequest = nil
+        }
     }
 
     /// Deletes your online match on the server too (allowed while `Pending` or `Rejected`).
-    static func deleteOnline(matchID: UUID, backend: any OnlineBackend) async throws {
-        try await backend.deleteMatch(id: matchID)
+    static func deleteOnline(matchID: UUID, backend: any OnlineBackend, context: ModelContext) async throws {
+        try await Outbox.send(.deleteMatch(matchID), backend: backend, context: context)
     }
 
     // MARK: - Sync
 
     static func sync(me: Player, context: ModelContext, backend: any OnlineBackend) async throws {
         guard let myUserID = me.cloudUserID else { return }
-        // 0. Links of your friends decide which old matches you import (plan.md §6.3).
+        // 0. First what waited offline, then the links of your friends (they decide which old matches
+        //    you import, plan.md §6.3).
+        try await Outbox.flush(backend: backend, context: context)
         try await AccountLinking.syncLinks(me: me, context: context, backend: backend)
         let local = try context.fetch(FetchDescriptor<Match>())
 

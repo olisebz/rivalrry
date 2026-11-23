@@ -41,13 +41,15 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
         matches; deleting a sport deletes its matches.
 
 ## Where we stand
-- Phase 1 and Phase 2 are done (incl. the extra "Elo" section in Profile). 214 tests pass
-  (`PhaseTwoDoneTests` checks the Phase 2 "Done when" criterion).
-- Everything is still local (SwiftData, status `.local`). No CloudKit yet.
-- Not checked visually in the simulator yet: most Phase 2 screens (only the Elo table preview was rendered).
+- Phase 1, Phase 2 and Phase 3 are done. 303 tests pass (`PhaseTwoDoneTests` / `PhaseThreeDoneTests`
+  check the "Done when" criteria).
+- Online features run on `InMemoryBackend` (no CloudKit yet): Phase 3b waits for the paid account.
+- Not checked visually in the simulator yet: most Phase 2 and Phase 3 screens (rendered as previews: Elo
+  table, S4 Add Friend, S6 Requests with a friend request).
 
 ## Way of working
-- Now: Phase 3 ("Online with Friends", plan.md §8), in small steps. After each step: build the project,
+- Next: Phase 4 ("Groups & Rankings", plan.md §8), or Phase 3b once the paid account is active; ask the
+  user which. Work in small steps. After each step: build the project,
   run the tests, summarize briefly, then STOP and wait for an OK.
 - No paid Apple Developer account yet (user is getting one). Until then: build everything behind the
   `OnlineBackend` protocol (`Online/OnlineBackend.swift`) with `InMemoryBackend`. Everything that needs the
@@ -55,7 +57,7 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   TestFlight) is Phase 3b in plan.md §8; it starts when the account is active.
 - Phase 3 steps done: 1 username + profile sync (backend-agnostic) · 2 invite friends + friend requests ·
   3 match sync, `MatchResponse`, status · 4 S6 Requests (confirm, reject, remind, deletion, changes) ·
-  5 "Link to Account" + import
+  5 "Link to Account" + import · 6 Offline mode
 - Phase 3 decisions (agreed with the user): invite link = `rivalrry://invite/<username>` until there is a
   domain for Universal Links. "Requests" tab (S6) exists since step 2 with only "Friend requests"; step 4
   adds the rest. S4 = online part on top (search, QR, "Share Invite Link", "Scan QR Code"), row
@@ -77,6 +79,12 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   with `localOnly = .rejectedImport` and keep counting for you. If the friend imports, your own copies get
   `localOnly = .duplicate` and stop counting (nothing deleted). Imports show as one bulk request per friend
   in S6 "Imported matches" ("Confirm All" / "Review"); the badge counts each friend once.
+- Step 6 decisions: queued while offline (`Online/Outbox.swift`, SwiftData `PendingAction`, sent in order,
+  refused ones dropped): Confirm, Reject, deletion requests/answers, deleting your match, profile edits;
+  matches and Remind wait via `needsUpload`. Your answers show right away. Need a connection: username,
+  search, friend requests, Link to Account. Offline note only in Requests ("You're offline. Changes are
+  sent when you're back online." + waiting count). `Connectivity` (NWPathMonitor) syncs when back online;
+  in debug the in-memory backend follows the real connection. `OnlineError.offline` = no connection.
 - Phase 1 steps (done): 1 project/tokens/model · 2 result rules + validation · 3 record/duel logic ·
   4 S1 Rivals · 5 S2 header + Overview · 6 S2b Add Match · 7 S2c Stats · 8 S3, S4 · 9 S0, S9 · 10 Head to Head
 - Phase 2 steps (done): 1 Team mode + "Together" · 2 Races (Go-Kart, Running 3+) · 3 Elo + "Elo History" ·

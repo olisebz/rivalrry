@@ -101,7 +101,8 @@ struct MatchDetailView: View {
             if match.status != .local {
                 let id = match.id
                 let backend = online.backend
-                Task { try? await MatchSync.deleteOnline(matchID: id, backend: backend) }
+                let context = context
+                Task { try? await MatchSync.deleteOnline(matchID: id, backend: backend, context: context) }
             }
             context.delete(match)
         }

@@ -40,11 +40,12 @@ enum AccountLinking {
         guard let myUserID = me.cloudUserID, let friendUserID = online.cloudUserID,
               local.cloudUserID == nil, !local.isMe, local.id != online.id else { return .nothingToImport }
 
+        // Needs a connection: read what the friend did before changing anything here.
+        let links = try await backend.fetchLinks()
         merge(online, into: local, context: context)
         let matches = try context.fetch(FetchDescriptor<Match>())
         let myCount = localMatches(with: local, me: me, in: matches).count
 
-        let links = try await backend.fetchLinks()
         let theirs = links.first { $0.userID == friendUserID && $0.friendUserID == myUserID }
         var mine = LinkRecord(userID: myUserID, friendUserID: friendUserID, localMatchCount: myCount)
         let outcome: Outcome
@@ -67,7 +68,7 @@ enum AccountLinking {
             outcome = .nothingToImport
         }
 
-        try await backend.saveLink(mine)
+        try await Outbox.send(.link(mine), backend: backend, context: context)
         applyImports(me: me, context: context)
         return outcome
     }
@@ -78,10 +79,10 @@ enum AccountLinking {
         guard let myUserID = me.cloudUserID, let friendUserID = friend.cloudUserID else { return }
         let matches = try context.fetch(FetchDescriptor<Match>())
         friend.importsMatches = youImport
-        try await backend.saveLink(LinkRecord(
+        try await Outbox.send(.link(LinkRecord(
             userID: myUserID, friendUserID: friendUserID,
             localMatchCount: localMatches(with: friend, me: me, in: matches).count,
-            importerUserID: youImport ? myUserID : friendUserID))
+            importerUserID: youImport ? myUserID : friendUserID)), backend: backend, context: context)
         applyImports(me: me, context: context)
     }
 

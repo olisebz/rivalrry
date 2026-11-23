@@ -81,7 +81,8 @@ struct FriendFormView: View {
             // Your online profile follows "Edit Profile" (Phase 3). Offline retries come in step 7.
             if friend.isMe {
                 let backend = backend
-                Task { try? await ProfileSync.push(friend, backend: backend) }
+                let context = context
+                Task { try? await ProfileSync.push(friend, backend: backend, context: context) }
             }
         } else {
             context.insert(Player(name: cleaned, photo: photo, colorHex: colorHex))
