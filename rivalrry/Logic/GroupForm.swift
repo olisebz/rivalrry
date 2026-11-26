@@ -73,6 +73,12 @@ extension PlayerGroup {
         }
     }
 
+    /// Who you can play in S8 "Add Match": the other members who aren't archived. Team partners and
+    /// race participants also come only from them.
+    var opponents: [Player] {
+        members.filter { !$0.isMe && !$0.isArchived }
+    }
+
     /// S8 member rows: you first, then by name.
     var sortedMembers: [Player] {
         members.sorted { lhs, rhs in

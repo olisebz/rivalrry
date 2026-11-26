@@ -3,7 +3,7 @@ import SwiftData
 
 /// S8 – Group Detail (plan.md §4 S8): name, symbol, members and the group's recent matches.
 /// "Edit Group" renames it and adds or removes members; "Leave Group" removes you for everyone.
-/// The group ranking (step 6) and "Add Match" (step 4) follow.
+/// "Add Match" only offers group members. The group ranking follows in step 6.
 struct GroupDetailView: View {
     let group: PlayerGroup
 
@@ -14,10 +14,13 @@ struct GroupDetailView: View {
     @Environment(\.onlineBackend) private var backend
 
     @State private var isEditing = false
+    @State private var isAddingMatch = false
     @State private var isConfirmingLeave = false
     @State private var leaveOnDisappear = false
 
     private var me: Player? { players.first(where: \.isMe) }
+    /// Needs at least one other member who isn't archived.
+    private var canAddMatch: Bool { me != nil && !group.opponents.isEmpty }
 
     var body: some View {
         let matches = group.matches(in: allMatches)
@@ -28,7 +31,10 @@ struct GroupDetailView: View {
                 members
                 if let me {
                     if matches.isEmpty {
-                        EmptyStateView(symbol: "sportscourt", message: "No matches yet. Who's first?")
+                        EmptyStateView(symbol: "sportscourt", message: "No matches yet. Who's first?",
+                                       buttonTitle: canAddMatch ? "Add Match" : nil) {
+                            isAddingMatch = true
+                        }
                     } else {
                         recentMatches(Array(matches.prefix(5)), me: me)
                     }
@@ -37,6 +43,16 @@ struct GroupDetailView: View {
             .padding(.bottom, Spacing.l)
         }
         .background(Color.rvBackground)
+        .safeAreaInset(edge: .bottom) {
+            // Only one primary button per screen: the empty state brings its own.
+            if canAddMatch, !matches.isEmpty {
+                Button("Add Match") { isAddingMatch = true }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .padding(.horizontal, Spacing.m)
+                    .padding(.vertical, Spacing.s)
+                    .background(Color.rvBackground)
+            }
+        }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { menu }
@@ -45,6 +61,9 @@ struct GroupDetailView: View {
         }
         .sheet(isPresented: $isEditing) {
             GroupFormView(group: group)
+        }
+        .sheet(isPresented: $isAddingMatch) {
+            if let me { QuickAddView(me: me, friends: group.opponents, group: group) }
         }
         .confirmationDialog("Leave \(group.name)?", isPresented: $isConfirmingLeave, titleVisibility: .visible) {
             Button("Leave Group", role: .destructive) {
@@ -128,7 +147,7 @@ struct GroupDetailView: View {
                 .font(.headline)
                 .foregroundStyle(Color.rvTextPrimary)
             }
-            MatchRows(matches: matches, me: me)
+            MatchRows(matches: matches, me: me, showsOpponents: true)
         }
         .padding(.horizontal, Spacing.m)
     }
@@ -173,7 +192,7 @@ struct GroupMatchListView: View {
                                     + sports.map { (value: Sport?.some($0), title: $0.displayName) },
                                 selection: $sport)
                 }
-                MatchRows(matches: matches, me: me)
+                MatchRows(matches: matches, me: me, showsOpponents: true)
                     .padding(.horizontal, Spacing.m)
             }
             .padding(.top, Spacing.s)

@@ -112,4 +112,55 @@ struct GroupFormTests {
 
         #expect(group.matches(in: try context.fetch(FetchDescriptor<Match>())).map(\.id) == [new.id, old.id])
     }
+
+    // MARK: - S8 "Add Match" (step 4)
+
+    @Test func addMatchOnlyOffersActiveMembers() throws {
+        let (context, me, max, tom, archived) = try players()
+        let outsider = Player(name: "Jonas Weber")
+        context.insert(outsider)
+        let group = PlayerGroup(name: "Padel", members: [me, max, tom, archived])
+        context.insert(group)
+        #expect(Set(group.opponents.map(\.name)) == ["Max Keller", "Tom Berger"])
+
+        // Team partners and race participants come from the same pool, without the chosen opponent.
+        var draft = MatchDraft(sport: Sport(.padel))
+        draft.mode = .team
+        #expect(draft.availablePlayers(from: group.opponents, friend: max).map(\.name) == ["Tom Berger"])
+    }
+
+    @Test func aTeamMatchOfMembersIsAGroupMatch() throws {
+        let (context, me, max, tom, _) = try players()
+        let lukas = Player(name: "Lukas Huber")
+        context.insert(lukas)
+        let group = PlayerGroup(name: "Padel", members: [me, max, tom, lukas])
+        context.insert(group)
+
+        var draft = MatchDraft(sport: Sport(.padel))
+        draft.mode = .team
+        draft.partners = [tom]
+        draft.opponents = [lukas]
+        draft.sets = [SetEntry(scoreA: 6, scoreB: 4), SetEntry(scoreA: 6, scoreB: 3)]
+        let match = draft.insertMatch(me: me, friend: max, into: context)
+
+        #expect(group.matches(in: try context.fetch(FetchDescriptor<Match>())).map(\.id) == [match.id])
+        #expect(match.groupDetailText(for: me).hasPrefix("vs Lukas & Max · "))
+        #expect(match.groupDetailText(for: me).hasSuffix(" · 2v2 · Best of 3"))
+    }
+
+    @Test func groupRowsNameTheOpponentButNotForRaces() throws {
+        let (context, me, max, _, _) = try players()
+        var draft = MatchDraft(sport: Sport(.badminton))
+        draft.bestOf = 1
+        draft.sets = [SetEntry(scoreA: 21, scoreB: 17)]
+        let match = draft.insertMatch(me: me, friend: max, into: context)
+        #expect(match.groupDetailText(for: me) == "vs Max · " + match.detailText())
+
+        let race = Match(sportType: .goKart)
+        race.mode = .race
+        context.insert(race)
+        race.participants = [MatchParticipant(player: me, side: .a, place: 1),
+                             MatchParticipant(player: max, side: .b, place: 2)]
+        #expect(race.groupDetailText(for: me) == race.detailText())
+    }
 }

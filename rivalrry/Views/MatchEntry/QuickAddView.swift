@@ -3,9 +3,12 @@ import SwiftData
 
 /// S5 – Quick Add from the "+" button on S1 (plan.md §4 S5):
 /// sport (most recent preselected), opponent (most recent first), then S2b steps 2–4.
+/// Also S8 "Add Match": then everyone in the match comes from the group (plan.md §4 S8).
 struct QuickAddView: View {
     let me: Player
     let friends: [Player]
+    /// S8: only these members, and the group's last sport is preselected.
+    var group: PlayerGroup? = nil
 
     @Environment(\.modelContext) private var context
     @Environment(\.onlineFriends) private var online
@@ -79,6 +82,7 @@ struct QuickAddView: View {
             .navigationDestination(for: Sport.self) { sport in
                 if let friend = selectedFriend {
                     MatchEntryView(sport: sport, me: me, friend: friend, isEdited: $isEdited,
+                                   pool: group?.opponents,
                                    onBack: backToStart,
                                    onSave: { save($0, against: friend) })
                 }
@@ -94,7 +98,8 @@ struct QuickAddView: View {
             // Only once, so going back keeps your own choice.
             guard !didPreselect else { return }
             didPreselect = true
-            selectedSport = QuickAdd.preselectedSport(me: me, matches: matches, available: sports)
+            selectedSport = QuickAdd.preselectedSport(me: me, matches: group?.matches(in: matches) ?? matches,
+                                                      available: sports)
         }
     }
 

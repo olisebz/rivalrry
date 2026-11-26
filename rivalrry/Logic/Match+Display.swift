@@ -188,6 +188,14 @@ extension Match {
             .sorted()
         return "vs " + names.joined(separator: " & ")
     }
+
+    /// Second line in group lists (S8), where the opponent isn't clear from the page:
+    /// "vs Max · Nov 23 · Best of 3". Races already say "4 racers".
+    func groupDetailText(for player: Player, now: Date = Date()) -> String {
+        let opponents = opponentsText(for: player)
+        guard mode != .race, !opponents.isEmpty else { return detailText(now: now) }
+        return opponents + " · " + detailText(now: now)
+    }
 }
 
 extension Sport {

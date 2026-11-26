@@ -31,12 +31,13 @@ struct OverviewView: View {
 struct MatchRows: View {
     let matches: [Match]
     let me: Player
+    var showsOpponents = false
 
     var body: some View {
         VStack(spacing: 0) {
             ForEach(matches) { match in
                 NavigationLink(value: match) {
-                    MatchRow(match: match, me: me)
+                    MatchRow(match: match, me: me, showsOpponents: showsOpponents)
                 }
                 .buttonStyle(.plain)
                 Rectangle()

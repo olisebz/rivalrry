@@ -127,7 +127,7 @@ iOS app (SwiftUI, SwiftData, iOS 17). Sources:
   5 "Score Margin", "Activity", sport tiles · 6 S5 Quick Add · 7 Custom sports · extra: "Elo" in Profile.
   Phase 3: 1 username, profile sync · 2 invite friends + friend requests · 3 match sync, `MatchResponse`,
   status · 4 S6 Requests · 5 "Link to Account" + import · 6 Offline mode (push moved to Phase 3b).
-  Phase 4: 1 `PlayerGroup` model + group sync · 2 S1 "Groups" + "New Group" · 3 S8 Group Detail.
+  Phase 4: 1 `PlayerGroup` model + group sync · 2 S1 "Groups" + "New Group" · 3 S8 Group Detail · 4 S8 "Add Match" (Quick Add sheet with the group; group lists say "vs Max").
 
 ## Commits
 - Never commit or push yourself. After each step, give the user a copy-paste command, run from the

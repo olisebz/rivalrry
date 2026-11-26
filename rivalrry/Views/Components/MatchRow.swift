@@ -4,6 +4,8 @@ import SwiftUI
 struct MatchRow: View {
     let match: Match
     let me: Player
+    /// Group lists (S8) also say who you played.
+    var showsOpponents = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
@@ -16,7 +18,7 @@ struct MatchRow: View {
                 Text(match.sport.displayName)
                     .font(.body)
                     .foregroundStyle(Color.rvTextPrimary)
-                Text(match.detailText())
+                Text(showsOpponents ? match.groupDetailText(for: me) : match.detailText())
                     .font(.subheadline)
                     .foregroundStyle(Color.rvTextSecondary)
             }

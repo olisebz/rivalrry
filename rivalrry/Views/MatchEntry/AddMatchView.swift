@@ -120,6 +120,8 @@ struct MatchEntryView: View {
     let me: Player?
     let friend: Player
     @Binding var isEdited: Bool
+    /// S8 "Add Match": team partners and race participants only from the group; `nil` = all friends.
+    let pool: [Player]?
     /// "‹ Sport" when adding; `nil` when editing.
     let onBack: (() -> Void)?
     let onCancel: (() -> Void)?
@@ -127,16 +129,20 @@ struct MatchEntryView: View {
 
     @State private var draft: MatchDraft
     @State private var showsDetails = false
-    @Query private var players: [Player]
+    @Query private var allPlayers: [Player]
+
+    /// Everyone who can be picked for teams and races.
+    private var players: [Player] { pool ?? allPlayers }
 
     init(sport: Sport, me: Player?, friend: Player, isEdited: Binding<Bool>,
-         initialDraft: MatchDraft? = nil,
+         initialDraft: MatchDraft? = nil, pool: [Player]? = nil,
          onBack: (() -> Void)? = nil, onCancel: (() -> Void)? = nil,
          onSave: @escaping (MatchDraft) -> Void) {
         self.sport = sport
         self.me = me
         self.friend = friend
         self._isEdited = isEdited
+        self.pool = pool
         self.onBack = onBack
         self.onCancel = onCancel
         self.onSave = onSave
